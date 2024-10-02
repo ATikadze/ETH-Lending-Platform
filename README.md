@@ -12,6 +12,17 @@ npx hardhat node
 npx hardhat ignition deploy ./ignition/modules/Lock.js
 ```
 
+
+Terms:
+
+	1.	Lender: The person or entity who deposits money or provides the loan.
+	2.	Borrower: The person or entity who borrows the money.
+	3.	Lend: The action of providing funds or giving a loan to someone.
+	4.	Borrow: The action of taking a loan or funds from the lender.
+	5.	Loan: The amount of money or cryptocurrency given by the lender to the borrower.
+	6.	Repay: The action of the borrower returning the loan or settling the debt.
+
+
 Description:
 
 We need a decentralized platform where users can either lend their cryptocurrency to earn interest or borrow assets by providing collateral. The system should be self-sustaining and secure, involving interest calculations, collateral management, and liquidation mechanisms. Below are the detailed requirements:

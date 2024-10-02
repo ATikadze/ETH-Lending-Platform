@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
+import "./ILoans.sol";
 import "./ILendingPool.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
@@ -9,17 +10,21 @@ import "@chainlink/contracts/src/v0.8/shared/interfaces/AggregatorV3Interface.so
 contract Borrower is ReentrancyGuard
 {
     uint8 constant public ltv = 80;
-    uint8 constant public ethAPR = 5;
     
+    ILoans loans;
     ILendingPool lendingPool;
     IERC20 usdtContract;
     // 0xEe9F2375b4bdF6387aa8265dD4FB8F16512A1d46
     AggregatorV3Interface usdtPriceFeed;
-    
-    mapping(address => uint256[]) borrowTimestamps;
-    mapping(address => mapping(uint256 => uint256)) borrowers;
 
-    constructor(address _lendingPoolAddress, address _usdtAddress, address _usdtPriceFeedAddress) {
+    modifier onlyLoanOwner(uint256 _loanId)
+    {
+        require(msg.sender == loans.getBorrower(_loanId));
+        _;
+    }
+
+    constructor(address _loansAddress, address _lendingPoolAddress, address _usdtAddress, address _usdtPriceFeedAddress) {
+        loans = ILoans(_loansAddress);
         lendingPool = ILendingPool(_lendingPoolAddress);
         usdtContract = IERC20(_usdtAddress);
         usdtPriceFeed = AggregatorV3Interface(_usdtPriceFeedAddress);
@@ -27,7 +32,8 @@ contract Borrower is ReentrancyGuard
 
     function getWeiPerUSDT() private view returns(uint256)
     {
-        (,int256 price,,,) = usdtPriceFeed.latestRoundData(); // latestRoundDate returns the price * 10^8
+        // latestRoundDate returns the price * 10^8
+        (,int256 price,,,) = usdtPriceFeed.latestRoundData();
         uint256 _weiPerUSDT = uint256(price) * 1e10;
 
         return _weiPerUSDT;
@@ -60,53 +66,26 @@ contract Borrower is ReentrancyGuard
         
         usdtContract.transferFrom(msg.sender, address(this), _usdtAmount);
         lendingPool.lendETH(msg.sender, _ethBorrowAmountInWei);
-
-        borrowers[msg.sender][block.timestamp] += _ethBorrowAmountInWei;
-        borrowTimestamps[msg.sender].push(block.timestamp);
-    }
-
-    function calculateInterest(uint256 _amount, uint256 _timestamp) private view returns(uint256)
-    {
-        uint256 _daysElapsed = (block.timestamp - _timestamp) / (24 * 60 * 60);
-        uint256 _interest = (_amount * ethAPR * (_daysElapsed / 365)) / 100;
-
-        return _interest;
     }
     
     // TODO: Add partial repayment
-    function repayETH() external payable nonReentrant
+    // TODO: Add collateral refund
+    function repayETHDebt(uint256 _loanId) external payable onlyLoanOwner(_loanId) nonReentrant
     {
-        require(msg.value > 0); // TODO: Custom error
+        uint256 _totalDebt = loans.calculateDebt(_loanId);
         
-        uint256 _accumulatedDebt = 0;
+        require(msg.value >= _totalDebt); // TODO: Custom error
 
-        for (uint256 i = 0; i < borrowTimestamps[msg.sender].length; i++)
-        {
-            uint256 _timestamp = borrowTimestamps[msg.sender][i];
-            uint256 _amount = borrowers[msg.sender][_timestamp];
-            
-            if (_timestamp == 0 || _amount == 0)
-                continue;
-                
-            uint256 _totalAmount = _amount + calculateInterest(_amount, _timestamp);
-
-            if (_accumulatedDebt + _totalAmount >= msg.value)
-                break;
-            
-            _accumulatedDebt += _totalAmount;
-
-            borrowTimestamps[msg.sender][i] = 0;
-            borrowers[msg.sender][_timestamp] = 0;
-        }
-
-        require(_accumulatedDebt > 0); // TODO: Custom error
+        lendingPool.repayETH{value: _totalDebt}(_loanId);
         
-        if (msg.value > _accumulatedDebt)
+        if (msg.value > _totalDebt)
         {
-            uint256 _refund = msg.value - _accumulatedDebt;
+            uint256 _refund = msg.value - _totalDebt;
             (bool _success,) = msg.sender.call{value: _refund}("");
             
             require(_success);
         }
+
+        loans.loanPaid(_loanId);
     }
 }
