@@ -45,9 +45,9 @@ contract LendingPool is ReentrancyGuard, Ownable, ILendingPool {
     function withdrawETH(uint256 _amount) public nonReentrant {
         require(lenderAmounts[msg.sender] >= _amount, "Not enough amount.");
 
-        (bool success, ) = msg.sender.call{value: _amount}("");
+        (bool _success, ) = msg.sender.call{value: _amount}("");
         
-        require(success);
+        require(_success);
         
         totalETHDeposit -= _amount;
     }
@@ -63,8 +63,8 @@ contract LendingPool is ReentrancyGuard, Ownable, ILendingPool {
             borrower[_borrower][lenders[i]] += lentAmount;
         }
         
-        (bool success, ) = _borrower.call{value: _amount}("");
+        (bool _success, ) = _borrower.call{value: _amount}("");
 
-        require(success);
+        require(_success);
     }
 }

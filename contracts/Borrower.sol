@@ -16,7 +16,8 @@ contract Borrower is ReentrancyGuard
     // 0xEe9F2375b4bdF6387aa8265dD4FB8F16512A1d46
     AggregatorV3Interface usdtPriceFeed;
     
-    mapping(address => uint256) borrowers;
+    mapping(address => uint256[]) borrowTimestamps;
+    mapping(address => mapping(uint256 => uint256)) borrowers;
 
     constructor(address _lendingPoolAddress, address _usdtAddress, address _usdtPriceFeedAddress) {
         lendingPool = ILendingPool(_lendingPoolAddress);
@@ -49,7 +50,7 @@ contract Borrower is ReentrancyGuard
     }
     
     // Expecting _ethBorrowAmountInWei in ETH * 10^18 and _usdtCollateralAmount in USDT
-    function borrowUSDT(uint256 _ethBorrowAmountInWei, uint256 _usdtCollateralAmount) external nonReentrant
+    function borrowETH(uint256 _ethBorrowAmountInWei, uint256 _usdtCollateralAmount) external nonReentrant
     {
         require(validateLTV(_ethBorrowAmountInWei, _usdtCollateralAmount)); // TODO: Custom error message
         
@@ -60,22 +61,52 @@ contract Borrower is ReentrancyGuard
         usdtContract.transferFrom(msg.sender, address(this), _usdtAmount);
         lendingPool.lendETH(msg.sender, _ethBorrowAmountInWei);
 
-        borrowers[msg.sender] += _ethBorrowAmountInWei;
+        borrowers[msg.sender][block.timestamp] += _ethBorrowAmountInWei;
+        borrowTimestamps[msg.sender].push(block.timestamp);
+    }
+
+    function calculateInterest(uint256 _amount, uint256 _timestamp) private view returns(uint256)
+    {
+        uint256 _daysElapsed = (block.timestamp - _timestamp) / (24 * 60 * 60);
+        uint256 _interest = (_amount * ethAPR * (_daysElapsed / 365)) / 100;
+
+        return _interest;
     }
     
     // TODO: Add partial repayment
-    function repayUSDT() external payable nonReentrant
+    function repayETH() external payable nonReentrant
     {
-        require(msg.value >= borrowers[msg.sender]);
+        require(msg.value > 0); // TODO: Custom error
+        
+        uint256 _accumulatedDebt = 0;
 
-        uint256 _fullRepayment = msg.value; // TODO: Calculate with interest
-
-        if (msg.value > _fullRepayment)
+        for (uint256 i = 0; i < borrowTimestamps[msg.sender].length; i++)
         {
-            uint256 _refund = msg.value - _fullRepayment;
-            (bool success,) = msg.sender.call{value: _refund}("");
+            uint256 _timestamp = borrowTimestamps[msg.sender][i];
+            uint256 _amount = borrowers[msg.sender][_timestamp];
             
-            require(success);
-        }   
+            if (_timestamp == 0 || _amount == 0)
+                continue;
+                
+            uint256 _totalAmount = _amount + calculateInterest(_amount, _timestamp);
+
+            if (_accumulatedDebt + _totalAmount >= msg.value)
+                break;
+            
+            _accumulatedDebt += _totalAmount;
+
+            borrowTimestamps[msg.sender][i] = 0;
+            borrowers[msg.sender][_timestamp] = 0;
+        }
+
+        require(_accumulatedDebt > 0); // TODO: Custom error
+        
+        if (msg.value > _accumulatedDebt)
+        {
+            uint256 _refund = msg.value - _accumulatedDebt;
+            (bool _success,) = msg.sender.call{value: _refund}("");
+            
+            require(_success);
+        }
     }
 }
