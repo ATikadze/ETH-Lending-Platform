@@ -55,8 +55,10 @@ contract Loans is Ownable, ILoans {
 
         return _interest;
     }
-
-    function calculateDebt(uint256 _loanId) external view returns(uint256) // TODO: Maybe add onlyLoanOwner?
+    
+    // TODO: Maybe add onlyLoanOwner?
+    // TODO: Add check for if the loan is paid
+    function calculateDebt(uint256 _loanId) external view returns(uint256)
     {
         Loan memory _loan = loans[_loanId];
 
@@ -100,6 +102,8 @@ contract Loans is Ownable, ILoans {
     
     function loanPaid(uint256 _loanId) external onlyWhitelist
     {
+        require(loans[_loanId].paidTimestamp == 0); // TODO
+        
         loans[_loanId].paidTimestamp = block.timestamp;
     }
 }
