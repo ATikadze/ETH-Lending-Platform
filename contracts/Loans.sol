@@ -26,6 +26,8 @@ contract Loans is Ownable, ILoans {
     mapping(uint256 => address) loanBorrowers;
     mapping(uint256 => Loan) loans;
 
+    event LoanCreated(uint256 loanId, address borrower, uint256 amount);
+
     modifier onlyWhitelist() {
         require(whitelist[msg.sender], "Unauthorized");
         _;
@@ -84,7 +86,7 @@ contract Loans is Ownable, ILoans {
         }
     }
 
-    function newLoan(address _borrower, uint256 _amount, address[] memory _lenderAddresses, uint256[] memory _lentAmounts) external onlyWhitelist returns(uint256)
+    function newLoan(address _borrower, uint256 _amount, address[] memory _lenderAddresses, uint256[] memory _lentAmounts) external onlyWhitelist
     {
         require(_lenderAddresses.length == _lentAmounts.length); // TODO
         
@@ -101,8 +103,8 @@ contract Loans is Ownable, ILoans {
         
         _loan.amount = _amount;
         _loan.borrowedTimestamp = block.timestamp;
-        
-        return loanId;
+
+        emit LoanCreated(loanId, _borrower, _amount);
     }
     
     function loanPaid(uint256 _loanId) external onlyWhitelist
