@@ -30,7 +30,7 @@ contract Borrower is ReentrancyGuard
         usdtPriceFeed = AggregatorV3Interface(_usdtPriceFeedAddress);
     }
 
-    function getWeiPerUSDT() private view returns(uint256)
+    function getWeiPerUSDT() internal view returns(uint256)
     {
         // latestRoundDate returns the price * 10^8
         (,int256 price,,,) = usdtPriceFeed.latestRoundData();
@@ -39,7 +39,7 @@ contract Borrower is ReentrancyGuard
         return _weiPerUSDT;
     }
 
-    function calculateLTV(uint256 _ethBorrowAmountInWei, uint256 _usdtCollateralAmount, uint256 _weiPerUSDT) private pure returns(uint256)
+    function calculateLTV(uint256 _ethBorrowAmountInWei, uint256 _usdtCollateralAmount, uint256 _weiPerUSDT) internal pure returns(uint256)
     {
         return (_ethBorrowAmountInWei * 100) / (_weiPerUSDT * _usdtCollateralAmount);
     }

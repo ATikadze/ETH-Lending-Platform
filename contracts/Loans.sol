@@ -48,9 +48,14 @@ contract Loans is Ownable, ILoans {
         return loanBorrowers[_loanId];
     }
 
-    function calculateInterest(uint256 _amount, uint256 _timestamp) private view returns(uint256)
+    function getDaysElapsed(uint256 _timestamp) internal view virtual returns(uint256)
     {
-        uint256 _daysElapsed = (block.timestamp - _timestamp) / (24 * 60 * 60);
+        return (block.timestamp - _timestamp) / (24 * 60 * 60);
+    }
+
+    function calculateInterest(uint256 _amount, uint256 _timestamp) internal view returns(uint256)
+    {
+        uint256 _daysElapsed = getDaysElapsed(_timestamp);
         uint256 _interest = (_amount * ethAPR * (_daysElapsed / 365)) / 100;
 
         return _interest;
