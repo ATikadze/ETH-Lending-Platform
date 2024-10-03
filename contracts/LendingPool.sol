@@ -59,7 +59,8 @@ contract LendingPool is ReentrancyGuard, Ownable, ILendingPool {
         
         require(_success);
     }
-
+    
+    // TODO: Restrict borrowing from themselves
     function lendETH(address _borrower, uint256 _amount) external onlyBorrower nonReentrant {
         uint256 availableETH = address(this).balance;
 
@@ -76,8 +77,8 @@ contract LendingPool is ReentrancyGuard, Ownable, ILendingPool {
 
             if (_lenderAvailableAmount == 0)
                 continue;
-            
-            uint256 _lentAmount = (_lenderAvailableAmount / availableETH) * _amount; // TODO: Double check this
+
+            uint256 _lentAmount = _lenderAvailableAmount * _amount / availableETH; // TODO: Double check this
             lenderAvailableAmounts[_lender] -= _lentAmount;
             _lenderAddresses[_validLendersCount] = _lender;
             _lentAmounts[_validLendersCount] = _lentAmount;
