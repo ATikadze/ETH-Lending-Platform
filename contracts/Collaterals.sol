@@ -54,4 +54,11 @@ contract Collaterals is Whitelistable, ReentrancyGuard, ICollaterals {
         
         usdtContract.transferFrom(_borrower, address(this), _usdtAmount);
     }
+
+    function withdrawCollateral(address _borrower, uint256 _collateralAmount) external onlyWhitelist nonReentrant
+    {
+        bool success = usdtContract.approve(_borrower, _collateralAmount);
+
+        require(success); // TODO
+    }
 }

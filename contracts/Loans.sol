@@ -8,19 +8,13 @@ import "./Interfaces/ILoans.sol";
 contract Loans is Whitelistable, ILoans {
     struct Loan {
         uint256 amount;
+        uint256 collateralAmount;
         uint256 borrowedTimestamp;
         uint256 paidTimestamp;
-        Lender[] lenders;
-    }
-
-    struct Lender {
-        address lender;
-        uint256 lentAmount;
     }
 
     uint8 public constant ethAPR = 5;
-    
-    uint256 loanId = 0;
+    uint256 public loanId = 0;
 
     mapping(address => uint256[]) borrowerLoans;
     mapping(uint256 => address) loanBorrowers;
@@ -46,46 +40,42 @@ contract Loans is Whitelistable, ILoans {
         return _interest;
     }
     
+    function calculateDebt(uint256 _amount, uint256 _borrowedTimestamp) internal view returns(uint256)
+    {
+        return _amount + calculateInterest(_amount, _borrowedTimestamp);
+    }
+    
     // TODO: Maybe add onlyLoanOwner?
     // TODO: Add check for if the loan is paid
     function calculateDebt(uint256 _loanId) external view returns(uint256)
     {
         Loan memory _loan = loans[_loanId];
 
-        return _loan.amount + calculateInterest(_loan.amount, _loan.borrowedTimestamp);
+        return calculateDebt(_loan.amount, _loan.borrowedTimestamp);
     }
 
-    function getLoanRepaymentDetails(uint256 _loanId) external view onlyWhitelist returns(uint256 _amount, address _borrower, address[] memory _lenderAddresses, uint256[] memory _lentAmounts)
+    function getLoanDetails(uint256 _loanId) external view onlyWhitelist returns(address _borrower, uint256 _amount, uint256 _collateralAmount, uint256 _borrowedTimestamp, uint256 _paidTimestamp, uint256 _totalDebt)
     {
+        _borrower = loanBorrowers[_loanId];
+        
         Loan memory _loan = loans[_loanId];
         _amount = _loan.amount;
-        _borrower = loanBorrowers[_loanId];
-
-        _lenderAddresses = new address[](_loan.lenders.length);
-        _lentAmounts = new uint256[](_loan.lenders.length);
-
-        for (uint256 i = 0; i < _loan.lenders.length; i++) {
-            _lenderAddresses[i] = _loan.lenders[i].lender;
-            _lentAmounts[i] = _loan.lenders[i].lentAmount;
-        }
+        _collateralAmount = _loan.collateralAmount;
+        _borrowedTimestamp = _loan.borrowedTimestamp;
+        _paidTimestamp = _loan.paidTimestamp;
+        _totalDebt = calculateDebt(_loan.amount, _loan.borrowedTimestamp);
     }
 
-    function newLoan(address _borrower, uint256 _amount, address[] memory _lenderAddresses, uint256[] memory _lentAmounts) external onlyWhitelist
+    function newLoan(address _borrower, uint256 _amount, uint256 _collateralAmount) external onlyWhitelist
     {
-        require(_lenderAddresses.length == _lentAmounts.length); // TODO
-        
         loanId++;
 
         borrowerLoans[_borrower].push(loanId);
         loanBorrowers[loanId] = _borrower;
 
         Loan storage _loan = loans[loanId];
-
-        for (uint256 i = 0; i < _lenderAddresses.length; i++) {
-            _loan.lenders.push(Lender(_lenderAddresses[i], _lentAmounts[i]));
-        }
-        
         _loan.amount = _amount;
+        _loan.collateralAmount = _collateralAmount;
         _loan.borrowedTimestamp = block.timestamp;
 
         emit LoanCreated(loanId, _borrower, _amount);

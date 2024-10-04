@@ -2,7 +2,6 @@
 pragma solidity ^0.8.0;
 
 import "./Whitelistable.sol";
-import "./Interfaces/ILoans.sol";
 import "./Interfaces/ILendingPool.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
@@ -13,12 +12,8 @@ contract LendingPool is Whitelistable, ReentrancyGuard, ILendingPool {
     mapping(address => uint256) lenderAmounts;
     mapping(address => uint256) lenderAvailableAmounts;
     mapping(address => bool) lenderHasDeposited;
-
-    ILoans loans;
-
-    constructor(address _loansAddress) {
-        loans = ILoans(_loansAddress);
-    }
+    mapping(uint256 => address[]) lenderAddresses;
+    mapping(uint256 => uint256[]) lentAmounts;
 
     function getAvailableAmount(address _lender) external view onlyWhitelist returns (uint256) {
         return lenderAvailableAmounts[_lender];
@@ -61,7 +56,8 @@ contract LendingPool is Whitelistable, ReentrancyGuard, ILendingPool {
     }
     
     // TODO: Restrict borrowing from themselves
-    function lend(address _borrower, uint256 _amount) external onlyWhitelist nonReentrant {
+    function lend(uint256 _loanId, address _borrower, uint256 _amount) external onlyWhitelist nonReentrant
+    {
         uint256 availableETH = address(this).balance;
 
         require(availableETH >= _amount); // TODO: Custom error message
@@ -93,34 +89,21 @@ contract LendingPool is Whitelistable, ReentrancyGuard, ILendingPool {
             _validLentAmounts[i] = _lentAmounts[i];
         }
         
-        loans.newLoan(_borrower, _amount, _validLenderAddresses, _validLentAmounts);
+        lenderAddresses[_loanId] = _validLenderAddresses;
+        lentAmounts[_loanId] = _validLentAmounts;
         
         (bool _success, ) = _borrower.call{value: _amount}("");
 
         require(_success);
     }
 
-    function repay(uint256 _loanId) external payable onlyWhitelist nonReentrant
+    function repay(uint256 _loanId, uint256 _loanAmount, uint256 _totalDebt) external payable onlyWhitelist nonReentrant
     {
-        uint256 _totalDebt = loans.calculateDebt(_loanId);
+        require(msg.value == _totalDebt); // TODO
         
-        require(msg.value >= _totalDebt); // TODO: Custom error
-        
-        (uint256 _loanAmount, address _borrower, address[] memory _lenderAddresses, uint256[] memory _lentAmounts) = loans.getLoanRepaymentDetails(_loanId);
-        
-        for (uint256 i = 0; i < _lenderAddresses.length; i++) {
-            uint256 _amount = _lentAmounts[i] * _totalDebt / _loanAmount;
-            lenderAvailableAmounts[_lenderAddresses[i]] += _amount;
+        for (uint256 i = 0; i < lenderAddresses[_loanId].length; i++) {
+            uint256 _amount = lentAmounts[_loanId][i] * _totalDebt / _loanAmount;
+            lenderAvailableAmounts[lenderAddresses[_loanId][i]] += _amount;
         }
-        
-        if (msg.value > _totalDebt)
-        {
-            uint256 _refund = msg.value - _totalDebt;
-            (bool _success,) = _borrower.call{value: _refund}("");
-            
-            require(_success);
-        }
-
-        loans.loanPaid(_loanId);
     }
 }
