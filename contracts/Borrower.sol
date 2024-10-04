@@ -1,21 +1,18 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import "./ILoans.sol";
-import "./ILendingPool.sol";
+import "./Interfaces/ILoans.sol";
+import "./Interfaces/ILendingPool.sol";
+import "./Interfaces/ICollaterals.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
-import "@chainlink/contracts/src/v0.8/shared/interfaces/AggregatorV3Interface.sol";
 
 contract Borrower is ReentrancyGuard
 {
-    uint8 constant public ltv = 80;
-    
     ILoans loans;
     ILendingPool lendingPool;
+    ICollaterals collaterals;
     IERC20 usdtContract;
-    // 0xEe9F2375b4bdF6387aa8265dD4FB8F16512A1d46
-    AggregatorV3Interface usdtPriceFeed;
 
     modifier onlyLoanOwner(uint256 _loanId)
     {
@@ -23,42 +20,17 @@ contract Borrower is ReentrancyGuard
         _;
     }
 
-    constructor(address _loansAddress, address _lendingPoolAddress, address _usdtAddress, address _usdtPriceFeedAddress) {
+    constructor(address _loansAddress, address _lendingPoolAddress, address _collateralsAddress, address _usdtAddress) {
         loans = ILoans(_loansAddress);
         lendingPool = ILendingPool(_lendingPoolAddress);
+        collaterals = ICollaterals(_collateralsAddress);
         usdtContract = IERC20(_usdtAddress);
-        usdtPriceFeed = AggregatorV3Interface(_usdtPriceFeedAddress);
-    }
-
-    function getWeiPerUSDT() internal view returns(uint256)
-    {
-        // latestRoundDate returns the price * 10^8
-        (,int256 price,,,) = usdtPriceFeed.latestRoundData();
-        uint256 _weiPerUSDT = uint256(price) * 1e10;
-
-        return _weiPerUSDT;
-    }
-
-    function calculateLTV(uint256 _ethBorrowAmountInWei, uint256 _usdtCollateralAmount, uint256 _weiPerUSDT) internal pure returns(uint256)
-    {
-        return (_ethBorrowAmountInWei * 100) / (_weiPerUSDT * _usdtCollateralAmount);
-    }
-
-    function validateLTV(uint256 _ethBorrowAmountInWei, uint256 _usdtCollateralAmount) public view returns(bool)
-    {
-        uint256 _weiPerUSDT = getWeiPerUSDT();
-
-        require(_weiPerUSDT > 0); // TODO: Custom error message
-        
-        uint256 _currentLTV = calculateLTV(_ethBorrowAmountInWei, _usdtCollateralAmount, _weiPerUSDT);
-
-        return _currentLTV <= ltv;
     }
     
     // Expecting _ethBorrowAmountInWei in ETH * 10^18 and _usdtCollateralAmount in USDT
     function borrowETH(uint256 _ethBorrowAmountInWei, uint256 _usdtCollateralAmount) external nonReentrant
     {
-        require(validateLTV(_ethBorrowAmountInWei, _usdtCollateralAmount)); // TODO: Custom error message
+        require(collaterals.validateLTV(_ethBorrowAmountInWei, _usdtCollateralAmount)); // TODO: Custom error message
         
         uint256 _usdtAmount = _usdtCollateralAmount * 1e6; // TODO: Possibly switch to a more dynamic approach. Get decimals from the contract.
         

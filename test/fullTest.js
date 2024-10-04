@@ -8,6 +8,7 @@ describe("Full Contracts Test", function () {
     let loansContractAsOwner;
     let lendingPoolContractAsOwner;
     let borrowerContractAsOwner;
+    let collateralsContractAsOwner;
 
     let lendingPoolContractAsLender1;
     let lendingPoolContractAsLender2;
@@ -67,6 +68,10 @@ describe("Full Contracts Test", function () {
         const loansContractFactory = await ethers.getContractFactory("LoansTest", ownerAccount);
         loansContractAsOwner = await loansContractFactory.deploy();
 
+        // Loans Contract
+        const collateralsContractFactory = await ethers.getContractFactory("CollateralsTest", ownerAccount);
+        collateralsContractAsOwner = await collateralsContractFactory.deploy(await aggregatorV3ContractAsOwner.getAddress());
+
         // Lending Pool Contract
         const lendingPoolContractFactory = await ethers.getContractFactory("LendingPoolTest", ownerAccount);
         lendingPoolContractAsOwner = await lendingPoolContractFactory.deploy(await loansContractAsOwner.getAddress());
@@ -76,7 +81,7 @@ describe("Full Contracts Test", function () {
 
         // Borrower Contract
         const borrowerContractFactory = await ethers.getContractFactory("BorrowerTest", ownerAccount);
-        borrowerContractAsOwner = await borrowerContractFactory.deploy(await loansContractAsOwner.getAddress(), await lendingPoolContractAsOwner.getAddress(), await erc20ContractAsOwner.getAddress(), await aggregatorV3ContractAsOwner.getAddress());
+        borrowerContractAsOwner = await borrowerContractFactory.deploy(await loansContractAsOwner.getAddress(), await lendingPoolContractAsOwner.getAddress(), await collateralsContractAsOwner.getAddress(), await erc20ContractAsOwner.getAddress());
 
         borrowerContractAsBorrower = borrowerContractAsOwner.connect(borrowerAccount);
 
@@ -134,21 +139,23 @@ describe("Full Contracts Test", function () {
         });
     });
 
-    describe("Borrow", async function () {
+    describe("Collaterals", async function () {
         it("Validate LTV", async function () {
             /* console.log(await borrowerContractAsBorrower.ltv());
             console.log(await borrowerContractAsBorrower.calculateLTVTest(borrowAmount, usdtCollateral, await borrowerContractAsBorrower.getWeiPerUSDTTest())); */
 
-            expect(await borrowerContractAsBorrower.calculateLTVTest(borrowAmount, usdtCollateral, await borrowerContractAsBorrower.getWeiPerUSDTTest()))
-                .to.be.lessThan(await borrowerContractAsBorrower.ltv());
+            expect(await collateralsContractAsOwner.calculateLTVTest(borrowAmount, usdtCollateral, await collateralsContractAsOwner.getWeiPerUSDTTest()))
+                .to.be.lessThan(await collateralsContractAsOwner.ltv());
 
-            expect(await borrowerContractAsBorrower.validateLTV(borrowAmount, usdtCollateral / 2))
+            expect(await collateralsContractAsOwner.validateLTV(borrowAmount, usdtCollateral / 2))
                 .to.be.equal(false);
 
-            expect(await borrowerContractAsBorrower.validateLTV(borrowAmount, usdtCollateral))
+            expect(await collateralsContractAsOwner.validateLTV(borrowAmount, usdtCollateral))
                 .to.be.equal(true);
         });
+    });
 
+    describe("Borrow", async function () {
         it("Borrowing ETH", async function () {
             /*             console.log("Allowance: " + await erc20ContractAsOwner.allowance(borrowerAccount.address, borrowerContractAsBorrower.getAddress()));
                         console.log(borrowerAccount.address);

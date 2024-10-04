@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import "./ILoans.sol";
+import "./Interfaces/ILoans.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
 contract Loans is Ownable, ILoans {
@@ -17,7 +17,7 @@ contract Loans is Ownable, ILoans {
         uint256 lentAmount;
     }
 
-    uint8 constant public ethAPR = 5;
+    uint8 public constant ethAPR = 5;
     
     uint256 loanId = 0;
 
