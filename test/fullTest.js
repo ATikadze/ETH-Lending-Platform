@@ -70,7 +70,7 @@ describe("Full Contracts Test", function () {
 
         // Loans Contract
         const collateralsContractFactory = await ethers.getContractFactory("CollateralsTest", ownerAccount);
-        collateralsContractAsOwner = await collateralsContractFactory.deploy(await aggregatorV3ContractAsOwner.getAddress());
+        collateralsContractAsOwner = await collateralsContractFactory.deploy(await erc20ContractAsOwner.getAddress(), await aggregatorV3ContractAsOwner.getAddress());
 
         // Lending Pool Contract
         const lendingPoolContractFactory = await ethers.getContractFactory("LendingPoolTest", ownerAccount);
@@ -81,7 +81,7 @@ describe("Full Contracts Test", function () {
 
         // Borrower Contract
         const borrowerContractFactory = await ethers.getContractFactory("BorrowerTest", ownerAccount);
-        borrowerContractAsOwner = await borrowerContractFactory.deploy(await loansContractAsOwner.getAddress(), await lendingPoolContractAsOwner.getAddress(), await collateralsContractAsOwner.getAddress(), await erc20ContractAsOwner.getAddress());
+        borrowerContractAsOwner = await borrowerContractFactory.deploy(await loansContractAsOwner.getAddress(), await lendingPoolContractAsOwner.getAddress(), await collateralsContractAsOwner.getAddress());
 
         borrowerContractAsBorrower = borrowerContractAsOwner.connect(borrowerAccount);
 
@@ -93,7 +93,7 @@ describe("Full Contracts Test", function () {
 
         await erc20ContractAsOwner.mint(borrowerAccount, usdtTotalAmount);
 
-        await erc20ContractAsBorrower.approve(await borrowerContractAsOwner.getAddress(), usdtCollateralWithDecimals);
+        await erc20ContractAsBorrower.approve(await collateralsContractAsOwner.getAddress(), usdtCollateralWithDecimals);
 
         preLoanBorrowerBalance = await getAccountWeiBalance(borrowerAccount);
         preLoanLender1Balance = await getAccountWeiBalance(lenderAccount1);
@@ -174,7 +174,7 @@ describe("Full Contracts Test", function () {
             expect(await erc20ContractAsBorrower.balanceOf(borrowerAccount))
                 .to.be.equal(usdtTotalAmount - usdtCollateralWithDecimals);
 
-            expect(await erc20ContractAsBorrower.balanceOf(await borrowerContractAsOwner.getAddress()))
+            expect(await erc20ContractAsBorrower.balanceOf(await collateralsContractAsOwner.getAddress()))
                 .to.be.equal(usdtCollateralWithDecimals);
         });
 

@@ -4,7 +4,6 @@ pragma solidity ^0.8.0;
 import "./Interfaces/ILoans.sol";
 import "./Interfaces/ILendingPool.sol";
 import "./Interfaces/ICollaterals.sol";
-import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 contract Borrower is ReentrancyGuard
@@ -12,7 +11,6 @@ contract Borrower is ReentrancyGuard
     ILoans loans;
     ILendingPool lendingPool;
     ICollaterals collaterals;
-    IERC20 usdtContract;
 
     modifier onlyLoanOwner(uint256 _loanId)
     {
@@ -20,23 +18,16 @@ contract Borrower is ReentrancyGuard
         _;
     }
 
-    constructor(address _loansAddress, address _lendingPoolAddress, address _collateralsAddress, address _usdtAddress) {
+    constructor(address _loansAddress, address _lendingPoolAddress, address _collateralsAddress) {
         loans = ILoans(_loansAddress);
         lendingPool = ILendingPool(_lendingPoolAddress);
         collaterals = ICollaterals(_collateralsAddress);
-        usdtContract = IERC20(_usdtAddress);
     }
     
     // Expecting _ethBorrowAmountInWei in ETH * 10^18 and _usdtCollateralAmount in USDT
     function borrowETH(uint256 _ethBorrowAmountInWei, uint256 _usdtCollateralAmount) external nonReentrant
     {
-        require(collaterals.validateLTV(_ethBorrowAmountInWei, _usdtCollateralAmount)); // TODO: Custom error message
-        
-        uint256 _usdtAmount = _usdtCollateralAmount * 1e6; // TODO: Possibly switch to a more dynamic approach. Get decimals from the contract.
-        
-        require(usdtContract.allowance(msg.sender, address(this)) >= _usdtAmount); // TODO: Custom error message
-        
-        usdtContract.transferFrom(msg.sender, address(this), _usdtAmount);
+        collaterals.depositCollateral(msg.sender, _ethBorrowAmountInWei, _usdtCollateralAmount);
         lendingPool.lendETH(msg.sender, _ethBorrowAmountInWei);
     }
     

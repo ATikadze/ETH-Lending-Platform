@@ -2,15 +2,18 @@
 pragma solidity ^0.8.0;
 
 import "./Interfaces/ICollaterals.sol";
+import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@chainlink/contracts/src/v0.8/shared/interfaces/AggregatorV3Interface.sol";
 
 contract Collaterals is ICollaterals {
     uint8 public constant ltv = 80;
     
+    IERC20 usdtContract;
     // 0xEe9F2375b4bdF6387aa8265dD4FB8F16512A1d46
     AggregatorV3Interface usdtPriceFeed;
 
-    constructor(address _usdtPriceFeedAddress) {
+    constructor(address _usdtAddress, address _usdtPriceFeedAddress) {
+        usdtContract = IERC20(_usdtAddress);
         usdtPriceFeed = AggregatorV3Interface(_usdtPriceFeedAddress);
     }
 
@@ -28,7 +31,7 @@ contract Collaterals is ICollaterals {
         return (_ethBorrowAmountInWei * 100) / (_weiPerUSDT * _usdtCollateralAmount);
     }
 
-    function validateLTV(uint256 _ethBorrowAmountInWei, uint256 _usdtCollateralAmount) external view returns(bool)
+    function validateLTV(uint256 _ethBorrowAmountInWei, uint256 _usdtCollateralAmount) public view returns(bool)
     {
         uint256 _weiPerUSDT = getWeiPerUSDT();
 
@@ -37,5 +40,16 @@ contract Collaterals is ICollaterals {
         uint256 _currentLTV = calculateLTV(_ethBorrowAmountInWei, _usdtCollateralAmount, _weiPerUSDT);
 
         return _currentLTV <= ltv;
+    }
+
+    function depositCollateral(address _borrower, uint256 _ethBorrowAmountInWei, uint256 _usdtCollateralAmount) external
+    {
+        require(validateLTV(_ethBorrowAmountInWei, _usdtCollateralAmount)); // TODO: Custom error message
+        
+        uint256 _usdtAmount = _usdtCollateralAmount * 1e6; // TODO: Possibly switch to a more dynamic approach. Get decimals from the contract.
+        
+        require(usdtContract.allowance(_borrower, address(this)) >= _usdtAmount); // TODO: Custom error message
+        
+        usdtContract.transferFrom(_borrower, address(this), _usdtAmount);
     }
 }

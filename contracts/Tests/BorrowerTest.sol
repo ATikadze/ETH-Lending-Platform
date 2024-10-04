@@ -7,8 +7,8 @@ import "./AggregatorV3Test.sol";
 
 contract BorrowerTest is Borrower
 {
-    constructor(address _loansAddress, address _lendingPoolAddress, address _collateralsAddress, address _usdtAddress)
-    Borrower(_loansAddress, _lendingPoolAddress, _collateralsAddress, _usdtAddress)
+    constructor(address _loansAddress, address _lendingPoolAddress, address _collateralsAddress)
+    Borrower(_loansAddress, _lendingPoolAddress, _collateralsAddress)
     {
     }
 }

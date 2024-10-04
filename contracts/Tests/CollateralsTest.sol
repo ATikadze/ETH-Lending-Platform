@@ -7,8 +7,8 @@ import "./AggregatorV3Test.sol";
 
 contract CollateralsTest is Collaterals
 {
-    constructor(address _usdtPriceFeedAddress)
-    Collaterals(_usdtPriceFeedAddress)
+    constructor(address _usdtAddress, address _usdtPriceFeedAddress)
+    Collaterals(_usdtAddress, _usdtPriceFeedAddress)
     {
     }
 
