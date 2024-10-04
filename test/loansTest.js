@@ -18,8 +18,8 @@ describe("Loans Contract Test", function () {
     before(async function () {
         [ownerAccount, borrowerAccount, lenderAccount1, lenderAccount2] = await ethers.getSigners();
 
-        const Contract = await ethers.getContractFactory("LoansTest", ownerAccount);
-        contractAsOwner = await Contract.deploy();
+        const contractFactory = await ethers.getContractFactory("LoansTest", ownerAccount);
+        contractAsOwner = await contractFactory.deploy();
 
         contractAsBorrower = contractAsOwner.connect(borrowerAccount);
     });
@@ -58,7 +58,7 @@ describe("Loans Contract Test", function () {
             .to.not.be.reverted;
     });
 
-    it("New loan", async function () {
+    it("New Loan", async function () {
 
         await expect(contractAsOwner.newLoan(borrowerAccount, borrowAmount, [lenderAccount1, lenderAccount2], [lentAmount1]))
             .to.be.reverted;
