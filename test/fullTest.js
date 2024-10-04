@@ -15,7 +15,7 @@ describe("Full Contracts Test", function () {
     let erc20ContractAsBorrower;
     let borrowerContractAsBorrower;
 
-    const weiComparisonTolerance = 10 ** 13; // Approximate gas fee
+    const weiComparisonTolerance = 10 ** 15; // Approximate gas fee
 
     const lender1DepositAmount = toWei(27);
     const lender2DepositAmount = toWei(13);

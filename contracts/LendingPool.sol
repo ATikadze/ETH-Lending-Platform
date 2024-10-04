@@ -88,7 +88,7 @@ contract LendingPool is ReentrancyGuard, Ownable, ILendingPool {
             if (_lenderAvailableAmount == 0)
                 continue;
 
-            uint256 _lentAmount = _lenderAvailableAmount * _amount / availableETH; // TODO: Double check this
+            uint256 _lentAmount = _lenderAvailableAmount * _amount / availableETH;
             lenderAvailableAmounts[_lender] -= _lentAmount;
             _lenderAddresses[_validLendersCount] = _lender;
             _lentAmounts[_validLendersCount] = _lentAmount;
