@@ -7,8 +7,8 @@ import "./AggregatorV3Test.sol";
 
 contract BorrowerTest is Borrower
 {
-    constructor(address _loansAddress, address _lendingPoolAddress)
-    Borrower(_loansAddress, _lendingPoolAddress, address(new ERC20Test(msg.sender)), address(new AggregatorV3Test()))
+    constructor(address _loansAddress, address _lendingPoolAddress, address _usdtAddress, address _usdtPriceFeedAddress)
+    Borrower(_loansAddress, _lendingPoolAddress, _usdtAddress, _usdtPriceFeedAddress)
     {
     }
 

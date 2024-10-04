@@ -5,10 +5,12 @@ module.exports = {
     getAccountWeiBalance
 };
 
+const ethInWei = BigInt((10 ** 18));
+
 function toWei(num) {
-    return BigInt(num * (10 ** 18));
+    return BigInt(num) * ethInWei;
 }
 
 async function getAccountWeiBalance(address) {
-    return await ethers.provider.getBalance(address);
+    return BigInt(await ethers.provider.getBalance(address));
 }

@@ -43,17 +43,27 @@ contract LendingPool is ReentrancyGuard, Ownable, ILendingPool {
             lenders.push(msg.sender);
         }
 
-        lenderAmounts[msg.sender] += msg.value;
         lenderAvailableAmounts[msg.sender] += msg.value;
+        lenderAmounts[msg.sender] += msg.value;
         totalETHDeposit += msg.value;
     }
 
     function withdrawETH(uint256 _amount) public nonReentrant {
         require(lenderAvailableAmounts[msg.sender] >= _amount, "Not enough amount.");
         
-        lenderAmounts[msg.sender] -= _amount;
         lenderAvailableAmounts[msg.sender] -= _amount;
-        totalETHDeposit -= _amount;
+
+        if (_amount >= lenderAmounts[msg.sender]) {
+            lenderAmounts[msg.sender] = 0;
+        } else {
+            lenderAmounts[msg.sender] -= _amount;
+        }
+
+        if (_amount >= totalETHDeposit) {
+            totalETHDeposit = 0;
+        } else {
+            totalETHDeposit -= _amount;
+        }
 
         (bool _success, ) = msg.sender.call{value: _amount}("");
         
@@ -107,7 +117,7 @@ contract LendingPool is ReentrancyGuard, Ownable, ILendingPool {
         require(msg.value > _loanAmount); // TODO
 
         for (uint256 i = 0; i < _lenderAddresses.length; i++) {
-            uint256 _amount = (_lentAmounts[i] / _loanAmount) * msg.value;
+            uint256 _amount = _lentAmounts[i] * msg.value / _loanAmount;
             lenderAvailableAmounts[_lenderAddresses[i]] += _amount;
         }
     }
