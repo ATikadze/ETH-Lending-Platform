@@ -1,11 +1,14 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
+import "./SafeMath.sol";
 import "./Whitelistable.sol";
 import "./Interfaces/ILendingPool.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 contract LendingPool is Whitelistable, ReentrancyGuard, ILendingPool {
+    using SafeMath for uint256;
+    
     uint256 totalETHDeposit;
 
     address[] lenders;
@@ -14,6 +17,14 @@ contract LendingPool is Whitelistable, ReentrancyGuard, ILendingPool {
     mapping(address => bool) lenderHasDeposited;
     mapping(uint256 => address[]) lenderAddresses;
     mapping(uint256 => uint256[]) lentAmounts;
+    
+    // TODO: Test this out
+    function updateBalance(address _lender, uint256 _amount, bool _deposit) internal
+    {
+        lenderAvailableAmounts[_lender] = lenderAvailableAmounts[_lender].addOrSub(_amount, _deposit);
+        lenderAmounts[_lender] = lenderAmounts[_lender].addOrSub(_amount, _deposit);
+        totalETHDeposit = totalETHDeposit.addOrSub(_amount, _deposit);
+    }
 
     function getAvailableAmount(address _lender) external view onlyWhitelist returns (uint256) {
         return lenderAvailableAmounts[_lender];
@@ -28,27 +39,13 @@ contract LendingPool is Whitelistable, ReentrancyGuard, ILendingPool {
             lenders.push(_lender);
         }
 
-        lenderAvailableAmounts[_lender] += msg.value;
-        lenderAmounts[_lender] += msg.value;
-        totalETHDeposit += msg.value;
+        updateBalance(_lender, msg.value, true);
     }
 
     function withdraw(address _lender, uint256 _amount) external onlyWhitelist nonReentrant {
         require(lenderAvailableAmounts[_lender] >= _amount, "Not enough amount.");
         
-        lenderAvailableAmounts[_lender] -= _amount;
-
-        if (_amount >= lenderAmounts[_lender]) {
-            lenderAmounts[_lender] = 0;
-        } else {
-            lenderAmounts[_lender] -= _amount;
-        }
-
-        if (_amount >= totalETHDeposit) {
-            totalETHDeposit = 0;
-        } else {
-            totalETHDeposit -= _amount;
-        }
+        updateBalance(_lender, _amount, false);
 
         (bool _success, ) = _lender.call{value: _amount}("");
         
