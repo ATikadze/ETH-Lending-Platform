@@ -89,7 +89,9 @@ describe("Full Contracts Test", function () {
         await loansContractAsOwner.addWhitelist(await lendingPoolContractAsOwner.getAddress());
         await loansContractAsOwner.addWhitelist(await borrowerContractAsOwner.getAddress());
 
-        await lendingPoolContractAsOwner.setBorrowerContract(await borrowerContractAsOwner.getAddress());
+        await lendingPoolContractAsOwner.addWhitelist(await borrowerContractAsOwner.getAddress());
+        
+        await collateralsContractAsOwner.addWhitelist(await borrowerContractAsOwner.getAddress());
 
         await erc20ContractAsOwner.mint(borrowerAccount, usdtTotalAmount);
 

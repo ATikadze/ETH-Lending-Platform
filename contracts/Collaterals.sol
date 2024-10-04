@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
+import "./Whitelistable.sol";
 import "./Interfaces/ICollaterals.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@chainlink/contracts/src/v0.8/shared/interfaces/AggregatorV3Interface.sol";
 
-contract Collaterals is ICollaterals {
+contract Collaterals is Whitelistable, ICollaterals {
     uint8 public constant ltv = 80;
     
     IERC20 usdtContract;
@@ -42,7 +43,7 @@ contract Collaterals is ICollaterals {
         return _currentLTV <= ltv;
     }
 
-    function depositCollateral(address _borrower, uint256 _ethBorrowAmountInWei, uint256 _usdtCollateralAmount) external
+    function depositCollateral(address _borrower, uint256 _ethBorrowAmountInWei, uint256 _usdtCollateralAmount) external onlyWhitelist
     {
         require(validateLTV(_ethBorrowAmountInWei, _usdtCollateralAmount)); // TODO: Custom error message
         

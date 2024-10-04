@@ -1,14 +1,13 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
+import "./Whitelistable.sol";
 import "./Interfaces/ILoans.sol";
 import "./Interfaces/ILendingPool.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
-contract LendingPool is ReentrancyGuard, Ownable, ILendingPool {
+contract LendingPool is Whitelistable, ReentrancyGuard, ILendingPool {
     uint256 totalETHDeposit;
-    address borrowerContract;
 
     address[] lenders;
     mapping(address => uint256) lenderAmounts;
@@ -17,17 +16,8 @@ contract LendingPool is ReentrancyGuard, Ownable, ILendingPool {
 
     ILoans loans;
 
-    modifier onlyBorrower() {
-        require(msg.sender == borrowerContract, "Not authorized!");
-        _;
-    }
-
-    constructor(address _loansAddress) Ownable(msg.sender) {
+    constructor(address _loansAddress) {
         loans = ILoans(_loansAddress);
-    }
-
-    function setBorrowerContract(address _borrowerContract) external onlyOwner {
-        borrowerContract = _borrowerContract;
     }
 
     function getAvailableETHAmount() public view returns (uint256) {
@@ -71,7 +61,7 @@ contract LendingPool is ReentrancyGuard, Ownable, ILendingPool {
     }
     
     // TODO: Restrict borrowing from themselves
-    function lendETH(address _borrower, uint256 _amount) external onlyBorrower nonReentrant {
+    function lendETH(address _borrower, uint256 _amount) external onlyWhitelist nonReentrant {
         uint256 availableETH = address(this).balance;
 
         require(availableETH >= _amount); // TODO: Custom error message
@@ -110,7 +100,7 @@ contract LendingPool is ReentrancyGuard, Ownable, ILendingPool {
         require(_success);
     }
 
-    function repayETH(uint256 _loanId) external payable onlyBorrower nonReentrant
+    function repayETH(uint256 _loanId) external payable onlyWhitelist nonReentrant
     {
         (uint256 _loanAmount, address[] memory _lenderAddresses, uint256[] memory _lentAmounts) = loans.getLoanRepaymentDetails(_loanId);
         

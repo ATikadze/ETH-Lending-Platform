@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
+import "./Whitelistable.sol";
 import "./Interfaces/ILoans.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
 
-contract Loans is Ownable, ILoans {
+contract Loans is Whitelistable, ILoans {
     struct Loan {
         uint256 amount;
         uint256 borrowedTimestamp;
@@ -21,29 +21,11 @@ contract Loans is Ownable, ILoans {
     
     uint256 loanId = 0;
 
-    mapping(address => bool) whitelist;
     mapping(address => uint256[]) borrowerLoans;
     mapping(uint256 => address) loanBorrowers;
     mapping(uint256 => Loan) loans;
 
     event LoanCreated(uint256 loanId, address borrower, uint256 amount);
-
-    modifier onlyWhitelist() {
-        require(whitelist[msg.sender], "Unauthorized");
-        _;
-    }
-
-    constructor() Ownable(msg.sender) {}
-
-    function addWhitelist(address _address) external onlyOwner
-    {
-        whitelist[_address] = true;
-    }
-
-    function removeWhitelist(address _address) external onlyOwner
-    {
-        whitelist[_address] = false;
-    }
 
     function getBorrower(uint256 _loanId) external view returns(address)
     {
