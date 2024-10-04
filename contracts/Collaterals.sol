@@ -4,9 +4,10 @@ pragma solidity ^0.8.0;
 import "./Whitelistable.sol";
 import "./Interfaces/ICollaterals.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "@chainlink/contracts/src/v0.8/shared/interfaces/AggregatorV3Interface.sol";
 
-contract Collaterals is Whitelistable, ICollaterals {
+contract Collaterals is Whitelistable, ReentrancyGuard, ICollaterals {
     uint8 public constant ltv = 80;
     
     IERC20 usdtContract;
@@ -32,7 +33,7 @@ contract Collaterals is Whitelistable, ICollaterals {
         return (_ethBorrowAmountInWei * 100) / (_weiPerUSDT * _usdtCollateralAmount);
     }
 
-    function validateLTV(uint256 _ethBorrowAmountInWei, uint256 _usdtCollateralAmount) public view returns(bool)
+    function validateLTV(uint256 _ethBorrowAmountInWei, uint256 _usdtCollateralAmount) public view onlyWhitelist returns(bool)
     {
         uint256 _weiPerUSDT = getWeiPerUSDT();
 
@@ -43,7 +44,7 @@ contract Collaterals is Whitelistable, ICollaterals {
         return _currentLTV <= ltv;
     }
 
-    function depositCollateral(address _borrower, uint256 _ethBorrowAmountInWei, uint256 _usdtCollateralAmount) external onlyWhitelist
+    function depositCollateral(address _borrower, uint256 _ethBorrowAmountInWei, uint256 _usdtCollateralAmount) external onlyWhitelist nonReentrant
     {
         require(validateLTV(_ethBorrowAmountInWei, _usdtCollateralAmount)); // TODO: Custom error message
         

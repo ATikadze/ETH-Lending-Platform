@@ -20,33 +20,33 @@ contract LendingPool is Whitelistable, ReentrancyGuard, ILendingPool {
         loans = ILoans(_loansAddress);
     }
 
-    function getAvailableETHAmount() public view returns (uint256) {
-        return lenderAvailableAmounts[msg.sender];
+    function getAvailableAmount(address _lender) external view onlyWhitelist returns (uint256) {
+        return lenderAvailableAmounts[_lender];
     }
 
-    function depositETH() public payable {
+    function deposit(address _lender) external payable onlyWhitelist {
         require(msg.value > 0, "Lending amount must be greater than 0!");
 
-        if (!lenderHasDeposited[msg.sender])
+        if (!lenderHasDeposited[_lender])
         {
-            lenderHasDeposited[msg.sender] = true;
-            lenders.push(msg.sender);
+            lenderHasDeposited[_lender] = true;
+            lenders.push(_lender);
         }
 
-        lenderAvailableAmounts[msg.sender] += msg.value;
-        lenderAmounts[msg.sender] += msg.value;
+        lenderAvailableAmounts[_lender] += msg.value;
+        lenderAmounts[_lender] += msg.value;
         totalETHDeposit += msg.value;
     }
 
-    function withdrawETH(uint256 _amount) public nonReentrant {
-        require(lenderAvailableAmounts[msg.sender] >= _amount, "Not enough amount.");
+    function withdraw(address _lender, uint256 _amount) external onlyWhitelist nonReentrant {
+        require(lenderAvailableAmounts[_lender] >= _amount, "Not enough amount.");
         
-        lenderAvailableAmounts[msg.sender] -= _amount;
+        lenderAvailableAmounts[_lender] -= _amount;
 
-        if (_amount >= lenderAmounts[msg.sender]) {
-            lenderAmounts[msg.sender] = 0;
+        if (_amount >= lenderAmounts[_lender]) {
+            lenderAmounts[_lender] = 0;
         } else {
-            lenderAmounts[msg.sender] -= _amount;
+            lenderAmounts[_lender] -= _amount;
         }
 
         if (_amount >= totalETHDeposit) {
@@ -55,13 +55,13 @@ contract LendingPool is Whitelistable, ReentrancyGuard, ILendingPool {
             totalETHDeposit -= _amount;
         }
 
-        (bool _success, ) = msg.sender.call{value: _amount}("");
+        (bool _success, ) = _lender.call{value: _amount}("");
         
         require(_success);
     }
     
     // TODO: Restrict borrowing from themselves
-    function lendETH(address _borrower, uint256 _amount) external onlyWhitelist nonReentrant {
+    function lend(address _borrower, uint256 _amount) external onlyWhitelist nonReentrant {
         uint256 availableETH = address(this).balance;
 
         require(availableETH >= _amount); // TODO: Custom error message
@@ -100,15 +100,27 @@ contract LendingPool is Whitelistable, ReentrancyGuard, ILendingPool {
         require(_success);
     }
 
-    function repayETH(uint256 _loanId) external payable onlyWhitelist nonReentrant
+    function repay(uint256 _loanId) external payable onlyWhitelist nonReentrant
     {
-        (uint256 _loanAmount, address[] memory _lenderAddresses, uint256[] memory _lentAmounts) = loans.getLoanRepaymentDetails(_loanId);
+        uint256 _totalDebt = loans.calculateDebt(_loanId);
         
-        require(msg.value > _loanAmount); // TODO
-
+        require(msg.value >= _totalDebt); // TODO: Custom error
+        
+        (uint256 _loanAmount, address _borrower, address[] memory _lenderAddresses, uint256[] memory _lentAmounts) = loans.getLoanRepaymentDetails(_loanId);
+        
         for (uint256 i = 0; i < _lenderAddresses.length; i++) {
-            uint256 _amount = _lentAmounts[i] * msg.value / _loanAmount;
+            uint256 _amount = _lentAmounts[i] * _totalDebt / _loanAmount;
             lenderAvailableAmounts[_lenderAddresses[i]] += _amount;
         }
+        
+        if (msg.value > _totalDebt)
+        {
+            uint256 _refund = msg.value - _totalDebt;
+            (bool _success,) = _borrower.call{value: _refund}("");
+            
+            require(_success);
+        }
+
+        loans.loanPaid(_loanId);
     }
 }

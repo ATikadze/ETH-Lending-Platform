@@ -4,6 +4,7 @@ pragma solidity ^0.8.0;
 import "./Whitelistable.sol";
 import "./Interfaces/ILoans.sol";
 
+// TODO: Probably add onlyWhitelist to visible methods
 contract Loans is Whitelistable, ILoans {
     struct Loan {
         uint256 amount;
@@ -54,10 +55,11 @@ contract Loans is Whitelistable, ILoans {
         return _loan.amount + calculateInterest(_loan.amount, _loan.borrowedTimestamp);
     }
 
-    function getLoanRepaymentDetails(uint256 _loanId) external view onlyWhitelist returns(uint256 _amount, address[] memory _lenderAddresses, uint256[] memory _lentAmounts)
+    function getLoanRepaymentDetails(uint256 _loanId) external view onlyWhitelist returns(uint256 _amount, address _borrower, address[] memory _lenderAddresses, uint256[] memory _lentAmounts)
     {
         Loan memory _loan = loans[_loanId];
         _amount = _loan.amount;
+        _borrower = loanBorrowers[_loanId];
 
         _lenderAddresses = new address[](_loan.lenders.length);
         _lentAmounts = new uint256[](_loan.lenders.length);
