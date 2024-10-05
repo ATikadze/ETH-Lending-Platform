@@ -15,8 +15,6 @@ contract LendingPool is Whitelistable, ReentrancyGuard, ILendingPool {
     mapping(address => uint256) lenderAmounts;
     mapping(address => uint256) lenderAvailableAmounts;
     mapping(address => bool) lenderHasDeposited;
-    mapping(uint256 => address[]) lenderAddresses;
-    mapping(uint256 => uint256[]) lentAmounts;
     
     // TODO: Test this out
     function updateBalance(address _lender, uint256 _amount, bool _deposit) internal
@@ -53,17 +51,12 @@ contract LendingPool is Whitelistable, ReentrancyGuard, ILendingPool {
     }
     
     // TODO: Restrict borrowing from themselves
-    function lend(uint256 _loanId, address _borrower, uint256 _amount) external onlyWhitelist nonReentrant
+    function lend(address _borrower, uint256 _amount) external onlyWhitelist nonReentrant
     {
         uint256 availableETH = address(this).balance;
 
         require(availableETH >= _amount); // TODO: Custom error message
         
-        address[] memory _lenderAddresses = new address[](lenders.length);
-        uint256[] memory _lentAmounts = new uint256[](lenders.length);
-        uint256 _validLendersCount = 0;
-
-        // Percentage: (x / y) * 100
         for (uint256 i = 0; i < lenders.length; i++) {
             address _lender = lenders[i];
             uint256 _lenderAvailableAmount = lenderAvailableAmounts[_lender];
@@ -73,34 +66,28 @@ contract LendingPool is Whitelistable, ReentrancyGuard, ILendingPool {
 
             uint256 _lentAmount = _lenderAvailableAmount * _amount / availableETH;
             lenderAvailableAmounts[_lender] -= _lentAmount;
-            _lenderAddresses[_validLendersCount] = _lender;
-            _lentAmounts[_validLendersCount] = _lentAmount;
-            _validLendersCount++;
         }
-        
-        address[] memory _validLenderAddresses = new address[](_validLendersCount);
-        uint256[] memory _validLentAmounts = new uint256[](_validLendersCount);
-
-        for (uint256 i = 0; i < _validLendersCount; i++) {
-            _validLenderAddresses[i] = _lenderAddresses[i];
-            _validLentAmounts[i] = _lentAmounts[i];
-        }
-        
-        lenderAddresses[_loanId] = _validLenderAddresses;
-        lentAmounts[_loanId] = _validLentAmounts;
         
         (bool _success, ) = _borrower.call{value: _amount}("");
 
         require(_success);
     }
 
-    function repay(uint256 _loanId, uint256 _loanAmount, uint256 _totalDebt) external payable onlyWhitelist nonReentrant
+    function repay(uint256 _totalDebt) external payable onlyWhitelist nonReentrant
     {
         require(msg.value == _totalDebt); // TODO
         
-        for (uint256 i = 0; i < lenderAddresses[_loanId].length; i++) {
-            uint256 _amount = lentAmounts[_loanId][i] * _totalDebt / _loanAmount;
-            lenderAvailableAmounts[lenderAddresses[_loanId][i]] += _amount;
+        uint256 availableETH = address(this).balance - _totalDebt;
+        
+        for (uint256 i = 0; i < lenders.length; i++) {
+            address _lender = lenders[i];
+            uint256 _lenderAvailableAmount = lenderAvailableAmounts[_lender];
+
+            if (_lenderAvailableAmount == 0)
+                continue;
+
+            uint256 _debtShare = _lenderAvailableAmount * _totalDebt / availableETH;
+            lenderAvailableAmounts[_lender] += _debtShare;
         }
     }
 }

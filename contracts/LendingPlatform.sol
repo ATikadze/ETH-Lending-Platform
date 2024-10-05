@@ -28,22 +28,22 @@ contract LendingPlatform is ILendingPlatform {
     // Expecting _ethBorrowAmountInWei in ETH * 10^18 and _usdtCollateralAmount in USDT
     function borrowETH(uint256 _ethBorrowAmountInWei, uint256 _usdtCollateralAmount) external
     {
-        loans.newLoan(msg.sender, _ethBorrowAmountInWei, _usdtCollateralAmount);
-
         collaterals.depositCollateral(msg.sender, _ethBorrowAmountInWei, _usdtCollateralAmount);
-        lendingPool.lend(loans.loanId(), msg.sender, _ethBorrowAmountInWei);
+        lendingPool.lend(msg.sender, _ethBorrowAmountInWei);
+
+        loans.newLoan(msg.sender, _ethBorrowAmountInWei, _usdtCollateralAmount);
     }
     
     // TODO: Add partial repayment
     // TODO: Add collateral refund
     function repayETHDebt(uint256 _loanId) external payable
     {
-        (address _borrower, uint256 _loanAmount, uint256 _collateralAmount,,, uint256 _totalDebt) = loans.getLoanDetails(_loanId);(_loanId);
+        (address _borrower,, uint256 _collateralAmount,,, uint256 _totalDebt) = loans.getLoanDetails(_loanId);
         
         require(msg.sender == _borrower); // TODO
         require(msg.value >= _totalDebt); // TODO
         
-        lendingPool.repay{value: msg.value}(_loanId, _loanAmount, _totalDebt);
+        lendingPool.repay{value: msg.value}(_totalDebt);
         collaterals.withdrawCollateral(msg.sender, _collateralAmount);
 
         loans.loanPaid(_loanId);
