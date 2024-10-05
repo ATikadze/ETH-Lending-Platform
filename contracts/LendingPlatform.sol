@@ -15,9 +15,18 @@ contract LendingPlatform is ILendingPlatform {
     ICollaterals public collaterals;
 
     constructor(address _usdtAddress, address _usdtPriceFeedAddress) {
+        initializeContracts(_usdtAddress, _usdtPriceFeedAddress);
+    }
+
+    function initializeContracts(address _usdtAddress, address _usdtPriceFeedAddress) internal virtual
+    {
         loans = new Loans();
         lendingPool = new LendingPool();
         collaterals = new Collaterals(_usdtAddress, _usdtPriceFeedAddress);
+    }
+
+    function getAvailableAmount() external view returns (uint256) {
+        return lendingPool.getAvailableAmount(msg.sender);
     }
     
     function depositETH() external payable {

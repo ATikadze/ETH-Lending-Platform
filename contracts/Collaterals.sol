@@ -35,7 +35,7 @@ contract Collaterals is Ownable, ReentrancyGuard, ICollaterals {
         return (_ethBorrowAmountInWei * 100) / (_weiPerUSDT * _usdtCollateralAmount);
     }
 
-    function validateLTV(uint256 _ethBorrowAmountInWei, uint256 _usdtCollateralAmount) public view onlyOwner returns(bool)
+    function validateLTV(uint256 _ethBorrowAmountInWei, uint256 _usdtCollateralAmount) public view returns(bool)
     {
         uint256 _weiPerUSDT = getWeiPerUSDT();
 
