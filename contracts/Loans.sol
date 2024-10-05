@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import "./Whitelistable.sol";
 import "./Interfaces/ILoans.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
 
-// TODO: Probably add onlyWhitelist to visible methods
-contract Loans is Whitelistable, ILoans {
+contract Loans is Ownable, ILoans {
     struct Loan {
         uint256 amount;
         uint256 collateralAmount;
@@ -21,6 +20,8 @@ contract Loans is Whitelistable, ILoans {
     mapping(uint256 => Loan) loans;
 
     event LoanCreated(uint256 loanId, address borrower, uint256 amount);
+
+    constructor() Ownable(msg.sender) {}
 
     function getBorrower(uint256 _loanId) external view returns(address)
     {
@@ -46,15 +47,17 @@ contract Loans is Whitelistable, ILoans {
     }
     
     // TODO: Maybe add onlyLoanOwner?
-    // TODO: Add check for if the loan is paid
     function calculateDebt(uint256 _loanId) external view returns(uint256)
     {
         Loan memory _loan = loans[_loanId];
 
+        if (_loan.paidTimestamp != 0)
+            return 0;
+
         return calculateDebt(_loan.amount, _loan.borrowedTimestamp);
     }
 
-    function getLoanDetails(uint256 _loanId) external view onlyWhitelist returns(address _borrower, uint256 _amount, uint256 _collateralAmount, uint256 _borrowedTimestamp, uint256 _paidTimestamp, uint256 _totalDebt)
+    function getLoanDetails(uint256 _loanId) external view onlyOwner returns(address _borrower, uint256 _amount, uint256 _collateralAmount, uint256 _borrowedTimestamp, uint256 _paidTimestamp, uint256 _totalDebt)
     {
         _borrower = loanBorrowers[_loanId];
         
@@ -66,7 +69,7 @@ contract Loans is Whitelistable, ILoans {
         _totalDebt = calculateDebt(_loan.amount, _loan.borrowedTimestamp);
     }
 
-    function newLoan(address _borrower, uint256 _amount, uint256 _collateralAmount) external onlyWhitelist
+    function newLoan(address _borrower, uint256 _amount, uint256 _collateralAmount) external onlyOwner
     {
         loanId++;
 
@@ -81,7 +84,7 @@ contract Loans is Whitelistable, ILoans {
         emit LoanCreated(loanId, _borrower, _amount);
     }
     
-    function loanPaid(uint256 _loanId) external onlyWhitelist
+    function loanPaid(uint256 _loanId) external onlyOwner
     {
         require(loans[_loanId].paidTimestamp == 0); // TODO
         

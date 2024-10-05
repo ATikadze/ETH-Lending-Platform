@@ -2,11 +2,11 @@
 pragma solidity ^0.8.0;
 
 import "./SafeMath.sol";
-import "./Whitelistable.sol";
 import "./Interfaces/ILendingPool.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
-contract LendingPool is Whitelistable, ReentrancyGuard, ILendingPool {
+contract LendingPool is Ownable, ReentrancyGuard, ILendingPool {
     using SafeMath for uint256;
     
     uint256 totalETHDeposit;
@@ -16,6 +16,8 @@ contract LendingPool is Whitelistable, ReentrancyGuard, ILendingPool {
     mapping(address => uint256) lenderAvailableAmounts;
     mapping(address => bool) lenderHasDeposited;
     
+    constructor() Ownable(msg.sender) {}
+    
     // TODO: Test this out
     function updateBalance(address _lender, uint256 _amount, bool _deposit) internal
     {
@@ -24,11 +26,11 @@ contract LendingPool is Whitelistable, ReentrancyGuard, ILendingPool {
         totalETHDeposit = totalETHDeposit.addOrSub(_amount, _deposit);
     }
 
-    function getAvailableAmount(address _lender) external view onlyWhitelist returns (uint256) {
+    function getAvailableAmount(address _lender) external view onlyOwner returns (uint256) {
         return lenderAvailableAmounts[_lender];
     }
 
-    function deposit(address _lender) external payable onlyWhitelist {
+    function deposit(address _lender) external payable onlyOwner {
         require(msg.value > 0, "Lending amount must be greater than 0!");
 
         if (!lenderHasDeposited[_lender])
@@ -40,7 +42,7 @@ contract LendingPool is Whitelistable, ReentrancyGuard, ILendingPool {
         updateBalance(_lender, msg.value, true);
     }
 
-    function withdraw(address _lender, uint256 _amount) external onlyWhitelist nonReentrant {
+    function withdraw(address _lender, uint256 _amount) external onlyOwner nonReentrant {
         require(lenderAvailableAmounts[_lender] >= _amount, "Not enough amount.");
         
         updateBalance(_lender, _amount, false);
@@ -51,7 +53,7 @@ contract LendingPool is Whitelistable, ReentrancyGuard, ILendingPool {
     }
     
     // TODO: Restrict borrowing from themselves
-    function lend(address _borrower, uint256 _amount) external onlyWhitelist nonReentrant
+    function lend(address _borrower, uint256 _amount) external onlyOwner nonReentrant
     {
         uint256 availableETH = address(this).balance;
 
@@ -73,7 +75,7 @@ contract LendingPool is Whitelistable, ReentrancyGuard, ILendingPool {
         require(_success);
     }
 
-    function repay(uint256 _totalDebt) external payable onlyWhitelist nonReentrant
+    function repay(uint256 _totalDebt) external payable onlyOwner nonReentrant
     {
         require(msg.value == _totalDebt); // TODO
         

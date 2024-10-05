@@ -1,20 +1,23 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import "./Interfaces/ILendingPlatform.sol";
+import "./Loans.sol";
+import "./LendingPool.sol";
+import "./Collaterals.sol";
+import "./Interfaces/ILoans.sol";
 import "./Interfaces/ILendingPool.sol";
 import "./Interfaces/ICollaterals.sol";
-import "./Interfaces/ILoans.sol";
+import "./Interfaces/ILendingPlatform.sol";
 
 contract LendingPlatform is ILendingPlatform {
-    ILendingPool lendingPool;
-    ICollaterals collaterals;
-    ILoans loans;
+    ILoans public loans;
+    ILendingPool public lendingPool;
+    ICollaterals public collaterals;
 
-    constructor(address _lendingPoolAddress, address _collateralsAddress, address _loansAddress) {
-        lendingPool = ILendingPool(_lendingPoolAddress);
-        collaterals = ICollaterals(_collateralsAddress);
-        loans = ILoans(_loansAddress);
+    constructor(address _usdtAddress, address _usdtPriceFeedAddress) {
+        loans = new Loans();
+        lendingPool = new LendingPool();
+        collaterals = new Collaterals(_usdtAddress, _usdtPriceFeedAddress);
     }
     
     function depositETH() external payable {
