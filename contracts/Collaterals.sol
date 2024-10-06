@@ -88,9 +88,9 @@ contract Collaterals is Ownable, ReentrancyGuard, ICollaterals {
         usdtContract.transferFrom(_borrower, address(this), _usdtAmount);
     }
 
-    function withdrawCollateral(address _borrower, uint256 _collateralAmount) external onlyOwner nonReentrant
+    function withdrawCollateral(address _borrower, uint256 _usdtCollateralAmount) external onlyOwner nonReentrant
     {
-        bool _success = usdtContract.approve(_borrower, _collateralAmount); // TODO: Check if needs * 1e6
+        bool _success = usdtContract.approve(_borrower, _usdtCollateralAmount * 1e6); // TODO: Check if needs * 1e6
         require(_success); // TODO
     }
 
@@ -106,7 +106,7 @@ contract Collaterals is Ownable, ReentrancyGuard, ICollaterals {
 
         // liquidationAmount into WETH and then unwrap WETH to ETH
         uint256 wethAmount = swapUSDTForWETH(liquidationAmount, liquidationAmount * _weiPerUSDT); // TODO: liquidationAmount * _weiPerUSDT check if this should be in WEI
-        wethSpecificContract.withdraw(wethAmount); // TODO: Upon receiving ETH, move it to the owner (LendingPlatform)
+        wethSpecificContract.withdraw(wethAmount);
 
         (bool _success,) = owner().call{value: wethAmount}("");
         require(_success);
@@ -129,7 +129,6 @@ contract Collaterals is Ownable, ReentrancyGuard, ICollaterals {
 
         uint256[] memory amounts = uniswapRouter.swapExactTokensForTokens(amountIn, amountOutMin, path, address(this), block.timestamp);
 
-        // amounts[0] = USDT amount, amounts[1] = WETH amount
         return amounts[1];
     }
 }
