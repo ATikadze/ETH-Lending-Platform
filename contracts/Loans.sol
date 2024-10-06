@@ -46,7 +46,6 @@ contract Loans is Ownable, ILoans {
         return _amount + calculateInterest(_amount, _borrowedTimestamp);
     }
     
-    // TODO: Maybe add onlyLoanOwner?
     function calculateDebt(uint256 _loanId) external view returns(uint256)
     {
         Loan memory _loan = loans[_loanId];
@@ -95,7 +94,5 @@ contract Loans is Ownable, ILoans {
     {
         loans[_loanId].amount -= _coveredDebt;
         loans[_loanId].collateralAmount -= _liquidatedCollateral;
-
-        // TODO: Check if the debt is already paid
     }
 }

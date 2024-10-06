@@ -37,7 +37,6 @@ contract LendingPlatform is ILendingPlatform {
         lendingPool.withdraw(msg.sender, _amount);
     }
     
-    // Expecting _ethBorrowAmountInWei in ETH * 10^18 and _usdtCollateralAmount in USDT
     function borrowETH(uint256 _ethBorrowAmountInWei, uint256 _usdtCollateralAmount) external
     {
         collaterals.depositCollateral(msg.sender, _ethBorrowAmountInWei, _usdtCollateralAmount);

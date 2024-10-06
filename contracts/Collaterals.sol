@@ -17,7 +17,6 @@ contract Collaterals is Ownable, ReentrancyGuard, ICollaterals {
     IERC20 immutable usdtContract;
     IERC20 immutable wethContract;
     IWETH immutable wethSpecificContract;
-    // 0xEe9F2375b4bdF6387aa8265dD4FB8F16512A1d46
     AggregatorV3Interface immutable usdtPriceFeed;
     IUniswapV2Router01 immutable uniswapRouter;
 
@@ -33,11 +32,11 @@ contract Collaterals is Ownable, ReentrancyGuard, ICollaterals {
 
     function getWeiPerUSDT() internal view returns(uint256)
     {
-        // latestRoundDate returns the price * 10^8. So by multiplying it by 1e10 we normalize the value into WEI.
         (,int256 price,,,) = usdtPriceFeed.latestRoundData();
         
         require(price > 0, "Failed to retrieve price feed.");
 
+        // latestRoundDate() returns the price multiplied by 10^8. So by multiplying it by 1e10 we normalize the value into WEI.
         uint256 _weiPerUSDT = uint256(price) * 1e10;
 
         return _weiPerUSDT;
@@ -89,14 +88,17 @@ contract Collaterals is Ownable, ReentrancyGuard, ICollaterals {
         uint256 liquidatorIncentive = liquidationAmount * liquidatorBonus / 100;
 
         // liquidationAmount into WETH and then unwrap WETH to ETH
-        uint256 wethAmount = swapUSDTForWETH(liquidationAmount, liquidationAmount * _weiPerUSDT); // TODO: liquidationAmount * _weiPerUSDT check if this should be in WEI
+        // TODO: Param 1: Make sure liquidationAmount needs '* tokenDecimals'
+        // TODO: Param 2: Make sure liquidationAmount needs '* _weiPerUSDT'
+        uint256 wethAmount = swapUSDTForWETH(liquidationAmount * tokenDecimals, liquidationAmount * _weiPerUSDT);
         wethSpecificContract.withdraw(wethAmount);
 
         (bool _success,) = owner().call{value: wethAmount}("");
         require(_success, "Failed to send liquidated amount.");
 
         // Pay liquidator
-        _success = usdtContract.approve(_liquidator, liquidatorIncentive);
+        // TODO: Make sure it needs '* tokenDecimals'
+        _success = usdtContract.approve(_liquidator, liquidatorIncentive * tokenDecimals);
         require(_success, "Failed to approve liquidator incentive.");
 
         _liquidationAmount = liquidationAmount + liquidatorIncentive;
@@ -105,7 +107,7 @@ contract Collaterals is Ownable, ReentrancyGuard, ICollaterals {
     
     function swapUSDTForWETH(uint256 amountIn, uint256 amountOutMin) internal returns (uint256)
     {
-        usdtContract.approve(address(uniswapRouter), amountIn); // TODO: Check if amountIn needs (* tokenDecimals)
+        usdtContract.approve(address(uniswapRouter), amountIn);
 
         address[] memory path = new address[](2);
         path[0] = address(usdtContract);
