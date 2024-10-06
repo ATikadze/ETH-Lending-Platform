@@ -4,7 +4,7 @@ const { expect } = require("chai");
 
 // TODO: Add third lender and check the repayed debt value shares
 // TODO: Add liquidation tests
-describe("Full Contracts Test", function () {
+describe("Lending Platform Test", function () {
     let erc20ContractAsOwner;
     let erc20ContractAsBorrower;
 
