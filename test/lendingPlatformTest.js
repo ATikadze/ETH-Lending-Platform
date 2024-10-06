@@ -84,7 +84,7 @@ describe("Lending Platform Test", function () {
         lendingPoolContractAsOwner = new ethers.Contract(await lendingPlatformAsOwner.lendingPool(), require("../artifacts/contracts/Tests/LendingPoolTest.sol/LendingPoolTest.json").abi, ownerAccount);
         collateralsContractAsOwner = new ethers.Contract(await lendingPlatformAsOwner.collaterals(), require("../artifacts/contracts/Tests/CollateralsTest.sol/CollateralsTest.json").abi, ownerAccount);
 
-        // Operations
+        // ...
         await erc20ContractAsOwner.mint(borrowerAccount, usdtTotalAmount);
 
         await erc20ContractAsBorrower.approve(await collateralsContractAsOwner.getAddress(), usdtCollateralWithDecimals);

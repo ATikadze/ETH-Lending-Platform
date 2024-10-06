@@ -14,6 +14,8 @@ contract LendingPlatform is ILendingPlatform {
     ILendingPool public lendingPool;
     ICollaterals public collaterals;
 
+    error LoanAlreadyPaid(uint256 loanId);
+
     constructor(address _usdtAddress, address _wethAddress, address _usdtPriceFeedAddress, address _uniswapRouter) {
         initializeContracts(_usdtAddress, _wethAddress, _usdtPriceFeedAddress, _uniswapRouter);
     }
@@ -47,6 +49,9 @@ contract LendingPlatform is ILendingPlatform {
     
     function repayETHDebt(uint256 _loanId) external payable
     {
+        if (loans.loanPaid(_loanId))
+            revert LoanAlreadyPaid(_loanId);
+
         (address _borrower,, uint256 _collateralAmount,,, uint256 _totalDebt) = loans.getLoanDetails(_loanId);
         
         require(msg.sender == _borrower, "Only the original borrower can repay the debt.");
@@ -55,7 +60,7 @@ contract LendingPlatform is ILendingPlatform {
         lendingPool.repay{value: _totalDebt}(_borrower);
         collaterals.withdrawCollateral(msg.sender, _collateralAmount);
 
-        loans.loanPaid(_loanId);
+        loans.markLoanPaid(_loanId);
         
         if (msg.value > _totalDebt)
         {
@@ -67,6 +72,9 @@ contract LendingPlatform is ILendingPlatform {
 
     function liquidateCollateral(uint256 _loanId) external
     {
+        if (loans.loanPaid(_loanId))
+            revert LoanAlreadyPaid(_loanId);
+
         (address _borrower, uint256 _amount, uint256 _collateralAmount,,,) = loans.getLoanDetails(_loanId);
 
         (uint256 _liquidationAmount, uint256 _coveredDebt) = collaterals.liquidate(msg.sender, _amount, _collateralAmount);

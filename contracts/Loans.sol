@@ -33,6 +33,11 @@ contract Loans is Ownable, ILoans {
         return (block.timestamp - _timestamp) / (24 * 60 * 60);
     }
 
+    function loanPaid(uint256 _loanId) public view returns(bool)
+    {
+        return loans[_loanId].paidTimestamp != 0;
+    }
+
     function calculateInterest(uint256 _amount, uint256 _timestamp) internal view returns(uint256)
     {
         uint256 _daysElapsed = getDaysElapsed(_timestamp);
@@ -83,9 +88,9 @@ contract Loans is Ownable, ILoans {
         emit LoanCreated(loanId, _borrower, _amount);
     }
     
-    function loanPaid(uint256 _loanId) external onlyOwner
+    function markLoanPaid(uint256 _loanId) external onlyOwner
     {
-        require(loans[_loanId].paidTimestamp == 0, "Loan already paid.");
+        require(!loanPaid(_loanId), "Loan already paid.");
         
         loans[_loanId].paidTimestamp = block.timestamp;
     }
