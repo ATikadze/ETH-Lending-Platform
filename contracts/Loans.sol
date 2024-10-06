@@ -90,4 +90,12 @@ contract Loans is Ownable, ILoans {
         
         loans[_loanId].paidTimestamp = block.timestamp;
     }
+
+    function liquidateCollateral(uint256 _loanId, uint256 _coveredDebt, uint256 _liquidatedCollateral) external onlyOwner
+    {
+        loans[_loanId].amount -= _coveredDebt;
+        loans[_loanId].collateralAmount -= _liquidatedCollateral;
+
+        // TODO: Check if the debt is already paid
+    }
 }

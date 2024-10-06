@@ -6,5 +6,5 @@ interface ILendingPool {
     function deposit(address _lender) external payable;
     function withdraw(address _lender, uint256 _amount) external;
     function lend(address _borrower, uint256 _amount) external;
-    function repay(uint256 _totalDebt) external payable;
+    function repay() external payable;
 }

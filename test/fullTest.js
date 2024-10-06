@@ -2,6 +2,8 @@ const { toWei, getAccountWeiBalance } = require("../scripts/ethHelper");
 const { ethers } = require("hardhat");
 const { expect } = require("chai");
 
+// TODO: Add third lender and check the repayed debt value shares
+// TODO: Add liquidation tests
 describe("Full Contracts Test", function () {
     let erc20ContractAsOwner;
     let erc20ContractAsBorrower;
@@ -71,7 +73,7 @@ describe("Full Contracts Test", function () {
 
         // LendingPlatform Contract
         const lendingPlatformFactory = await ethers.getContractFactory("LendingPlatformTest", { libraries: { SafeMath: await safeMathLibraryAsOwner.getAddress() } }, ownerAccount);
-        lendingPlatformAsOwner = await lendingPlatformFactory.deploy(await erc20ContractAsOwner.getAddress(), await aggregatorV3ContractAsOwner.getAddress());
+        lendingPlatformAsOwner = await lendingPlatformFactory.deploy(await erc20ContractAsOwner.getAddress(), await erc20ContractAsOwner.getAddress(), await aggregatorV3ContractAsOwner.getAddress(), await erc20ContractAsOwner.getAddress()); // TODO: Add WETH and Uniswap Router addresses
 
         lendingPlatformAsLender1 = lendingPlatformAsOwner.connect(lenderAccount1);
         lendingPlatformAsLender2 = lendingPlatformAsOwner.connect(lenderAccount2);

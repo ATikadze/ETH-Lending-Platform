@@ -14,15 +14,15 @@ contract LendingPlatform is ILendingPlatform {
     ILendingPool public lendingPool;
     ICollaterals public collaterals;
 
-    constructor(address _usdtAddress, address _usdtPriceFeedAddress) {
-        initializeContracts(_usdtAddress, _usdtPriceFeedAddress);
+    constructor(address _usdtAddress, address _wethAddress, address _usdtPriceFeedAddress, address _uniswapRouter) {
+        initializeContracts(_usdtAddress, _wethAddress, _usdtPriceFeedAddress, _uniswapRouter);
     }
 
-    function initializeContracts(address _usdtAddress, address _usdtPriceFeedAddress) internal virtual
+    function initializeContracts(address _usdtAddress, address _wethAddress, address _usdtPriceFeedAddress, address _uniswapRouter) internal virtual
     {
         loans = new Loans();
         lendingPool = new LendingPool();
-        collaterals = new Collaterals(_usdtAddress, _usdtPriceFeedAddress);
+        collaterals = new Collaterals(_usdtAddress, _wethAddress, _usdtPriceFeedAddress, _uniswapRouter);
     }
 
     function getAvailableAmount() external view returns (uint256) {
@@ -55,7 +55,7 @@ contract LendingPlatform is ILendingPlatform {
         require(msg.sender == _borrower); // TODO
         require(msg.value >= _totalDebt); // TODO
         
-        lendingPool.repay{value: msg.value}(_totalDebt);
+        lendingPool.repay{value: _totalDebt}();
         collaterals.withdrawCollateral(msg.sender, _collateralAmount);
 
         loans.loanPaid(_loanId);
@@ -64,8 +64,16 @@ contract LendingPlatform is ILendingPlatform {
         {
             uint256 _refund = msg.value - _totalDebt;
             (bool _success,) = msg.sender.call{value: _refund}("");
-            
             require(_success);
         }
+    }
+
+    function liquidateCollateral(uint256 _loanId) external
+    {
+        (,uint256 _amount, uint256 _collateralAmount,,,) = loans.getLoanDetails(_loanId);
+
+        (uint256 _liquidationAmount, uint256 _coveredDebt) = collaterals.liquidate(msg.sender, _amount, _collateralAmount);
+        lendingPool.repay{value: _coveredDebt}();
+        loans.liquidateCollateral(_loanId, _coveredDebt, _liquidationAmount);
     }
 }

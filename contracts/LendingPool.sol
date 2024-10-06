@@ -75,11 +75,11 @@ contract LendingPool is Ownable, ReentrancyGuard, ILendingPool {
         require(_success);
     }
 
-    function repay(uint256 _totalDebt) external payable onlyOwner nonReentrant
+    function repay() external payable onlyOwner nonReentrant
     {
-        require(msg.value == _totalDebt); // TODO
+        require(msg.value > 0);
         
-        uint256 availableETH = address(this).balance - _totalDebt;
+        uint256 _availableETH = address(this).balance - msg.value;
         
         for (uint256 i = 0; i < lenders.length; i++) {
             address _lender = lenders[i];
@@ -88,7 +88,7 @@ contract LendingPool is Ownable, ReentrancyGuard, ILendingPool {
             if (_lenderAvailableAmount == 0)
                 continue;
 
-            uint256 _debtShare = _lenderAvailableAmount * _totalDebt / availableETH;
+            uint256 _debtShare = _lenderAvailableAmount * msg.value / _availableETH;
             lenderAvailableAmounts[_lender] += _debtShare;
         }
     }
