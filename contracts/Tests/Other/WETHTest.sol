@@ -5,6 +5,8 @@ import "./ERC20Test.sol";
 import "@uniswap/v2-periphery/contracts/interfaces/IWETH.sol";
 
 contract WETHTest is ERC20Test, IWETH {
+    constructor() ERC20Test("Test Wrapped Ether", "TWETH") {}
+
     function transfer(address _to, uint _value) public override(ERC20, IWETH) returns (bool)
     {
         return super.transfer(_to, _value);

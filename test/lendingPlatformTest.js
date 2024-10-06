@@ -8,7 +8,11 @@ describe("Lending Platform Test", function () {
     let erc20ContractAsOwner;
     let erc20ContractAsBorrower;
 
+    let wethContractAsOwner;
+
     let aggregatorV3ContractAsOwner;
+
+    let uniswapRouterContractAsOwner;
 
     let lendingPlatformAsOwner;
     let lendingPlatformAsLender1;
@@ -63,17 +67,25 @@ describe("Lending Platform Test", function () {
 
         // ERC20 Contract
         const erc20ContractFactory = await ethers.getContractFactory("ERC20Test", ownerAccount);
-        erc20ContractAsOwner = await erc20ContractFactory.deploy();
+        erc20ContractAsOwner = await erc20ContractFactory.deploy("Mock USDT", "MUSDT");
 
         erc20ContractAsBorrower = erc20ContractAsOwner.connect(borrowerAccount);
+
+        // WETH Contract
+        const wethContractFactory = await ethers.getContractFactory("WETHTest", ownerAccount);
+        wethContractAsOwner = await wethContractFactory.deploy();
 
         // AggregatorV3 Contract
         const aggregatorV3ContractFactory = await ethers.getContractFactory("AggregatorV3Test", ownerAccount);
         aggregatorV3ContractAsOwner = await aggregatorV3ContractFactory.deploy();
 
+        // Uniswap Router Contract
+        const uniswapRouterContractFactory = await ethers.getContractFactory("UniswapV2RouterTest", ownerAccount);
+        uniswapRouterContractAsOwner = await uniswapRouterContractFactory.deploy();
+
         // LendingPlatform Contract
         const lendingPlatformFactory = await ethers.getContractFactory("LendingPlatformTest", { libraries: { SafeMath: await safeMathLibraryAsOwner.getAddress() } }, ownerAccount);
-        lendingPlatformAsOwner = await lendingPlatformFactory.deploy(await erc20ContractAsOwner.getAddress(), await erc20ContractAsOwner.getAddress(), await aggregatorV3ContractAsOwner.getAddress(), await erc20ContractAsOwner.getAddress()); // TODO: Add WETH and Uniswap Router addresses
+        lendingPlatformAsOwner = await lendingPlatformFactory.deploy(await erc20ContractAsOwner.getAddress(), await wethContractAsOwner.getAddress(), await aggregatorV3ContractAsOwner.getAddress(), await uniswapRouterContractAsOwner.getAddress());
 
         lendingPlatformAsLender1 = lendingPlatformAsOwner.connect(lenderAccount1);
         lendingPlatformAsLender2 = lendingPlatformAsOwner.connect(lenderAccount2);
