@@ -86,7 +86,7 @@ contract Loans is Ownable, ILoans {
     
     function loanPaid(uint256 _loanId) external onlyOwner
     {
-        require(loans[_loanId].paidTimestamp == 0); // TODO
+        require(loans[_loanId].paidTimestamp == 0, "Loan already paid.");
         
         loans[_loanId].paidTimestamp = block.timestamp;
     }

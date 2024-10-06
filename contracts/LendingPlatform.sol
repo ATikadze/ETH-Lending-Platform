@@ -50,8 +50,8 @@ contract LendingPlatform is ILendingPlatform {
     {
         (address _borrower,, uint256 _collateralAmount,,, uint256 _totalDebt) = loans.getLoanDetails(_loanId);
         
-        require(msg.sender == _borrower); // TODO
-        require(msg.value >= _totalDebt); // TODO
+        require(msg.sender == _borrower, "Only the original borrower can repay the debt.");
+        require(msg.value >= _totalDebt, "Ether amount must equal to or be greater than the debt.");
         
         lendingPool.repay{value: _totalDebt}(_borrower);
         collaterals.withdrawCollateral(msg.sender, _collateralAmount);
@@ -62,7 +62,7 @@ contract LendingPlatform is ILendingPlatform {
         {
             uint256 _refund = msg.value - _totalDebt;
             (bool _success,) = msg.sender.call{value: _refund}("");
-            require(_success);
+            require(_success, "Failed to refund extra Ether.");
         }
     }
 

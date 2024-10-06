@@ -42,21 +42,19 @@ contract LendingPool is Ownable, ReentrancyGuard, ILendingPool {
     }
 
     function withdraw(address _lender, uint256 _amount) external onlyOwner nonReentrant {
-        require(lenderAvailableAmounts[_lender] >= _amount, "Not enough amount.");
+        require(lenderAvailableAmounts[_lender] >= _amount, "Not enough available amount to withdraw.");
         
         updateBalance(_lender, _amount, false);
 
         (bool _success, ) = _lender.call{value: _amount}("");
-        
-        require(_success);
+        require(_success, "Failed to withdraw funds.");
     }
     
-    // TODO: Restrict borrowing from themselves
     function lend(address _borrower, uint256 _amount) external onlyOwner nonReentrant
     {
         uint256 availableETH = address(this).balance;
 
-        require(availableETH >= _amount); // TODO: Custom error message
+        require(availableETH >= _amount, "Not enough available Ether to lend.");
         
         for (uint256 i = 0; i < lenders.length; i++) {
             address _lender = lenders[i];
@@ -70,13 +68,12 @@ contract LendingPool is Ownable, ReentrancyGuard, ILendingPool {
         }
         
         (bool _success, ) = _borrower.call{value: _amount}("");
-
-        require(_success);
+        require(_success, "Failed to lend Ether.");
     }
 
     function repay(address _borrower) external payable onlyOwner nonReentrant
     {
-        require(msg.value > 0);
+        require(msg.value > 0, "Ether amount must be greater than 0.");
         
         uint256 _availableETH = address(this).balance - msg.value;
         
