@@ -46,8 +46,6 @@ contract LendingPlatform is ILendingPlatform {
         loans.newLoan(msg.sender, _ethBorrowAmountInWei, _usdtCollateralAmount);
     }
     
-    // TODO: Add partial repayment
-    // TODO: Add collateral refund
     function repayETHDebt(uint256 _loanId) external payable
     {
         (address _borrower,, uint256 _collateralAmount,,, uint256 _totalDebt) = loans.getLoanDetails(_loanId);
@@ -55,7 +53,7 @@ contract LendingPlatform is ILendingPlatform {
         require(msg.sender == _borrower); // TODO
         require(msg.value >= _totalDebt); // TODO
         
-        lendingPool.repay{value: _totalDebt}();
+        lendingPool.repay{value: _totalDebt}(_borrower);
         collaterals.withdrawCollateral(msg.sender, _collateralAmount);
 
         loans.loanPaid(_loanId);
@@ -70,10 +68,10 @@ contract LendingPlatform is ILendingPlatform {
 
     function liquidateCollateral(uint256 _loanId) external
     {
-        (,uint256 _amount, uint256 _collateralAmount,,,) = loans.getLoanDetails(_loanId);
+        (address _borrower, uint256 _amount, uint256 _collateralAmount,,,) = loans.getLoanDetails(_loanId);
 
         (uint256 _liquidationAmount, uint256 _coveredDebt) = collaterals.liquidate(msg.sender, _amount, _collateralAmount);
-        lendingPool.repay{value: _coveredDebt}();
+        lendingPool.repay{value: _coveredDebt}(_borrower);
         loans.liquidateCollateral(_loanId, _coveredDebt, _liquidationAmount);
     }
 }

@@ -18,7 +18,6 @@ contract LendingPool is Ownable, ReentrancyGuard, ILendingPool {
     
     constructor() Ownable(msg.sender) {}
     
-    // TODO: Test this out
     function updateBalance(address _lender, uint256 _amount, bool _deposit) internal
     {
         lenderAvailableAmounts[_lender] = lenderAvailableAmounts[_lender].addOrSub(_amount, _deposit);
@@ -63,7 +62,7 @@ contract LendingPool is Ownable, ReentrancyGuard, ILendingPool {
             address _lender = lenders[i];
             uint256 _lenderAvailableAmount = lenderAvailableAmounts[_lender];
 
-            if (_lenderAvailableAmount == 0)
+            if (_lenderAvailableAmount == 0 && _borrower == _lender)
                 continue;
 
             uint256 _lentAmount = _lenderAvailableAmount * _amount / availableETH;
@@ -75,7 +74,7 @@ contract LendingPool is Ownable, ReentrancyGuard, ILendingPool {
         require(_success);
     }
 
-    function repay() external payable onlyOwner nonReentrant
+    function repay(address _borrower) external payable onlyOwner nonReentrant
     {
         require(msg.value > 0);
         
@@ -85,7 +84,7 @@ contract LendingPool is Ownable, ReentrancyGuard, ILendingPool {
             address _lender = lenders[i];
             uint256 _lenderAvailableAmount = lenderAvailableAmounts[_lender];
 
-            if (_lenderAvailableAmount == 0)
+            if (_lenderAvailableAmount == 0 && _borrower == _lender)
                 continue;
 
             uint256 _debtShare = _lenderAvailableAmount * msg.value / _availableETH;

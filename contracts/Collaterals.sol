@@ -32,7 +32,7 @@ contract Collaterals is Ownable, ReentrancyGuard, ICollaterals {
 
     function getWeiPerUSDT() internal view returns(uint256)
     {
-        // latestRoundDate returns the price * 10^8
+        // latestRoundDate returns the price * 10^8. So by multiplying it by 1e10 we normalize the value into WEI.
         (,int256 price,,,) = usdtPriceFeed.latestRoundData();
         uint256 _weiPerUSDT = uint256(price) * 1e10;
 
