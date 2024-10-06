@@ -18,7 +18,7 @@ contract Collaterals is Ownable, ReentrancyGuard, ICollaterals {
     IERC20 immutable wethContract;
     IWETH immutable wethSpecificContract;
     AggregatorV3Interface immutable usdtPriceFeed;
-    IUniswapV2Router01 immutable uniswapRouter;
+    IUniswapV2Router02 immutable uniswapRouter;
 
     constructor(address _usdtAddress, address _wethAddress, address _usdtPriceFeedAddress, address _uniswapRouter)
     Ownable(msg.sender)
@@ -27,7 +27,7 @@ contract Collaterals is Ownable, ReentrancyGuard, ICollaterals {
         wethContract = IERC20(_wethAddress);
         wethSpecificContract = IWETH(_wethAddress);
         usdtPriceFeed = AggregatorV3Interface(_usdtPriceFeedAddress);
-        uniswapRouter = IUniswapV2Router01(_uniswapRouter);
+        uniswapRouter = IUniswapV2Router02(_uniswapRouter);
     }
 
     function getWeiPerUSDT() internal view returns(uint256)
@@ -68,13 +68,14 @@ contract Collaterals is Ownable, ReentrancyGuard, ICollaterals {
         
         require(usdtContract.allowance(_borrower, address(this)) >= _usdtAmount, "No allowance for the collateral funds.");
         
-        usdtContract.transferFrom(_borrower, address(this), _usdtAmount);
+        bool _success = usdtContract.transferFrom(_borrower, address(this), _usdtAmount);
+        require(_success, "Failed to deposit collateral.");
     }
 
     function withdrawCollateral(address _borrower, uint256 _usdtCollateralAmount) external onlyOwner nonReentrant
     {
-        bool _success = usdtContract.approve(_borrower, _usdtCollateralAmount * tokenDecimals);
-        require(_success, "Failed to approve collateral withdrawal.");
+        bool _success = usdtContract.transfer(_borrower, _usdtCollateralAmount * tokenDecimals);
+        require(_success, "Failed to refund collateral.");
     }
 
     function liquidate(address _liquidator, uint256 _ethBorrowAmountInWei, uint256 _usdtCollateralAmount) external onlyOwner nonReentrant returns(uint256 _liquidationAmount, uint256 _coveredDebt)

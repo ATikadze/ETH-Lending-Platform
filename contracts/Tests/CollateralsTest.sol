@@ -2,8 +2,6 @@
 pragma solidity ^0.8.0;
 
 import "../Collaterals.sol";
-import "./ERC20Test.sol";
-import "./AggregatorV3Test.sol";
 
 contract CollateralsTest is Collaterals
 {

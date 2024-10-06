@@ -185,8 +185,6 @@ describe("Lending Platform Test", function () {
         });
 
         it("Check USDT balance", async function () {
-            await erc20ContractAsBorrower.transferFrom(await collateralsContractAsOwner.getAddress(), borrowerAccount, usdtCollateralWithDecimals);
-            
             expect(await erc20ContractAsBorrower.balanceOf(borrowerAccount))
                 .to.be.equal(usdtTotalAmount);
 
