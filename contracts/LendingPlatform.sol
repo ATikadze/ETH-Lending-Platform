@@ -16,28 +16,28 @@ contract LendingPlatform is ILendingPlatform {
 
     error LoanAlreadyPaid(uint256 loanId);
 
-    constructor(address _usdtAddress, address _wethAddress, address _usdtPriceFeedAddress, address _uniswapRouter) {
-        initializeContracts(_usdtAddress, _wethAddress, _usdtPriceFeedAddress, _uniswapRouter);
+    constructor(uint256 _tokenDecimalsCount, address _usdtAddress, address _wethAddress, address _usdtPriceFeedAddress, address _uniswapRouter) {
+        initializeContracts(_tokenDecimalsCount, _usdtAddress, _wethAddress, _usdtPriceFeedAddress, _uniswapRouter);
     }
     
     receive() external payable
     {
-        require(msg.sender == address(collaterals));
-        // TODO: Probably add depositETH calls
+        if (msg.sender != address(collaterals))
+            depositETH();
     }
 
-    function initializeContracts(address _usdtAddress, address _wethAddress, address _usdtPriceFeedAddress, address _uniswapRouter) internal virtual
+    function initializeContracts(uint256 _tokenDecimalsCount, address _usdtAddress, address _wethAddress, address _usdtPriceFeedAddress, address _uniswapRouter) internal virtual
     {
         loans = new Loans();
         lendingPool = new LendingPool();
-        collaterals = new Collaterals(_usdtAddress, _wethAddress, _usdtPriceFeedAddress, _uniswapRouter);
+        collaterals = new Collaterals(_tokenDecimalsCount, _usdtAddress, _wethAddress, _usdtPriceFeedAddress, _uniswapRouter);
     }
 
     function getAvailableAmount() external view returns (uint256) {
         return lendingPool.getAvailableAmount(msg.sender);
     }
     
-    function depositETH() external payable {
+    function depositETH() public payable {
         lendingPool.deposit{value: msg.value}(msg.sender);
     }
 

@@ -11,7 +11,7 @@ import "@uniswap/v2-periphery/contracts/interfaces/IWETH.sol";
 
 contract Collaterals is Ownable, ReentrancyGuard, ICollaterals {
     uint8 public constant ltv = 80;
-    uint256 public constant tokenDecimals = 1e6;
+    uint256 public immutable tokenDecimalsCount;
     
     IERC20 immutable usdtContract;
     IERC20 immutable wethContract;
@@ -21,9 +21,10 @@ contract Collaterals is Ownable, ReentrancyGuard, ICollaterals {
 
     event CollateralLiquidated(uint256 liquidationAmount, uint256 coveredDebt);
 
-    constructor(address _usdtAddress, address _wethAddress, address _usdtPriceFeedAddress, address _uniswapRouter)
+    constructor(uint256 _tokenDecimalsCount, address _usdtAddress, address _wethAddress, address _usdtPriceFeedAddress, address _uniswapRouter)
     Ownable(msg.sender)
     {
+        tokenDecimalsCount = _tokenDecimalsCount;
         usdtContract = IERC20(_usdtAddress);
         wethContract = IERC20(_wethAddress);
         wethSpecificContract = IWETH(_wethAddress);
@@ -34,6 +35,11 @@ contract Collaterals is Ownable, ReentrancyGuard, ICollaterals {
     receive() external payable
     {
         require(msg.sender == address(wethSpecificContract));
+    }
+
+    function getAmountWithDecimals(uint256 _amount) internal view returns(uint256)
+    {
+        return tokenDecimalsCount == 0 ? _amount : _amount * (10 ** tokenDecimalsCount);
     }
 
     function getWeiPerUSDT() internal view returns(uint256)
@@ -77,7 +83,7 @@ contract Collaterals is Ownable, ReentrancyGuard, ICollaterals {
     {
         require(validateLTV(_ethBorrowAmountInWei, _usdtCollateralAmount), "Invalid LTV: Borrowed amount must be less than 80% of the collateral.");
         
-        uint256 _usdtAmount = _usdtCollateralAmount * tokenDecimals; // TODO: Possibly switch to a more dynamic approach. Get decimals from the contract.
+        uint256 _usdtAmount = getAmountWithDecimals(_usdtCollateralAmount);
         
         require(usdtContract.allowance(_borrower, address(this)) >= _usdtAmount, "No allowance for the collateral funds.");
         
@@ -87,7 +93,7 @@ contract Collaterals is Ownable, ReentrancyGuard, ICollaterals {
 
     function withdrawCollateral(address _borrower, uint256 _usdtCollateralAmount) external onlyOwner nonReentrant
     {
-        bool _success = usdtContract.transfer(_borrower, _usdtCollateralAmount * tokenDecimals);
+        bool _success = usdtContract.transfer(_borrower, getAmountWithDecimals(_usdtCollateralAmount));
         require(_success, "Failed to refund collateral.");
     }
 
@@ -100,10 +106,7 @@ contract Collaterals is Ownable, ReentrancyGuard, ICollaterals {
 
         _totalLiquidatedAmount = calculateLiquidation(_ethBorrowAmountInWei, _usdtCollateralAmount, _weiPerUSDT);
 
-        // liquidationAmount into WETH and then unwrap WETH to ETH
-        // TODO: Param 1: Make sure liquidationAmount needs '* tokenDecimals'
-        // TODO: Param 2: Make sure liquidationAmount needs '* _weiPerUSDT'
-        uint256 _wethAmount = swapUSDTForWETH(_totalLiquidatedAmount * tokenDecimals, _totalLiquidatedAmount * _weiPerUSDT);
+        uint256 _wethAmount = swapUSDTForWETH(getAmountWithDecimals(_totalLiquidatedAmount), _totalLiquidatedAmount * _weiPerUSDT);
         wethSpecificContract.withdraw(_wethAmount);
 
         (bool _success,) = owner().call{value: _wethAmount}("");

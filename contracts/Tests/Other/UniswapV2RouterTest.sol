@@ -1,11 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import "./IUniswapV2RouterTest.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
-// TODO: Possibly get rid of IUniswapV2RouterTest
-contract UniswapV2RouterTest is IUniswapV2RouterTest {
+contract UniswapV2RouterTest {
     function swapExactTokensForTokens(
         uint amountIn,
         uint amountOutMin,

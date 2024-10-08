@@ -8,14 +8,14 @@ import "../Tests/CollateralsTest.sol";
 
 contract LendingPlatformTest is LendingPlatform
 {
-    constructor(address _usdtAddress, address _wethAddress, address _usdtPriceFeedAddress, address _uniswapRouter)
-    LendingPlatform(_usdtAddress, _wethAddress, _usdtPriceFeedAddress, _uniswapRouter)
+    constructor(uint256 _tokenDecimalsCount, address _usdtAddress, address _wethAddress, address _usdtPriceFeedAddress, address _uniswapRouter)
+    LendingPlatform(_tokenDecimalsCount, _usdtAddress, _wethAddress, _usdtPriceFeedAddress, _uniswapRouter)
     {}
 
-    function initializeContracts(address _usdtAddress, address _wethAddress, address _usdtPriceFeedAddress, address _uniswapRouter) internal override
+    function initializeContracts(uint256 _tokenDecimalsCount, address _usdtAddress, address _wethAddress, address _usdtPriceFeedAddress, address _uniswapRouter) internal override
     {
         loans = new LoansTest();
         lendingPool = new LendingPoolTest();
-        collaterals = new CollateralsTest(_usdtAddress, _wethAddress, _usdtPriceFeedAddress, _uniswapRouter);
+        collaterals = new CollateralsTest(_tokenDecimalsCount, _usdtAddress, _wethAddress, _usdtPriceFeedAddress, _uniswapRouter);
     }
 }

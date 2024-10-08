@@ -5,8 +5,8 @@ import "../Collaterals.sol";
 
 contract CollateralsTest is Collaterals
 {
-    constructor(address _usdtAddress, address _wethAddress, address _usdtPriceFeedAddress, address _uniswapRouter)
-    Collaterals(_usdtAddress, _wethAddress, _usdtPriceFeedAddress, _uniswapRouter)
+    constructor(uint256 _tokenDecimalsCount, address _usdtAddress, address _wethAddress, address _usdtPriceFeedAddress, address _uniswapRouter)
+    Collaterals(_tokenDecimalsCount, _usdtAddress, _wethAddress, _usdtPriceFeedAddress, _uniswapRouter)
     {
     }
 

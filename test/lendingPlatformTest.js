@@ -2,8 +2,6 @@ const { toWei, getAccountWeiBalance } = require("../scripts/ethHelper");
 const { ethers } = require("hardhat");
 const { expect } = require("chai");
 
-// TODO: Add third lender and check the repayed debt value shares
-// TODO: Add liquidation tests
 describe("Lending Platform Test", function () {
     let erc20ContractAsOwner;
     let erc20ContractAsBorrower;
@@ -34,7 +32,8 @@ describe("Lending Platform Test", function () {
     const debtInterest = borrowAmount * BigInt(5) / BigInt(100);
     const borrowerDebt = borrowAmount + debtInterest;
 
-    const usdtDecimals = (10 ** 6);
+    const usdtDecimalsCount = 6;
+    const usdtDecimals = (10 ** usdtDecimalsCount);
 
     const usdtCollateral = 60_000;
     const usdtCollateralWithDecimals = usdtCollateral * usdtDecimals;
@@ -109,7 +108,7 @@ describe("Lending Platform Test", function () {
 
         // LendingPlatform Contract
         const lendingPlatformFactory = await ethers.getContractFactory("LendingPlatformTest", { libraries: { SafeMath: await safeMathLibraryAsOwner.getAddress() } }, ownerAccount);
-        lendingPlatformAsOwner = await lendingPlatformFactory.deploy(await erc20ContractAsOwner.getAddress(), await wethContractAsOwner.getAddress(), await aggregatorV3ContractAsOwner.getAddress(), await uniswapRouterContractAsOwner.getAddress());
+        lendingPlatformAsOwner = await lendingPlatformFactory.deploy(usdtDecimalsCount, await erc20ContractAsOwner.getAddress(), await wethContractAsOwner.getAddress(), await aggregatorV3ContractAsOwner.getAddress(), await uniswapRouterContractAsOwner.getAddress());
 
         lendingPlatformAsLender1 = lendingPlatformAsOwner.connect(lenderAccount1);
         lendingPlatformAsLender2 = lendingPlatformAsOwner.connect(lenderAccount2);
@@ -155,7 +154,10 @@ describe("Lending Platform Test", function () {
         });
 
         it("Lender 2 Deposit", async function () {
-            await lendingPlatformAsLender2.depositETH({ value: lender2DepositAmount });
+            await lenderAccount2.sendTransaction({
+                to: await lendingPlatformAsLender2.getAddress(),
+                value: lender2DepositAmount
+            });
 
             expect(await lendingPlatformAsLender2.getAvailableAmount())
                 .to.be.equal(lender2DepositAmount);
