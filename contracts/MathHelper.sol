@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-library SafeMath {
+library MathHelper {
     function addOrSub(uint256 a, uint256 b, bool add) public pure returns (uint256) {
         if (add) {
             return a + b;

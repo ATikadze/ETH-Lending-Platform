@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import "./SafeMath.sol";
+import "./MathHelper.sol";
 import "./Interfaces/ILendingPool.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 contract LendingPool is Ownable, ReentrancyGuard, ILendingPool {
-    using SafeMath for uint256;
+    using MathHelper for uint256;
     
     uint256 totalETHDeposit;
 

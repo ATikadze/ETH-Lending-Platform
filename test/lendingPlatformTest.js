@@ -84,9 +84,9 @@ describe("Lending Platform Test", function () {
     before(async function () {
         [ownerAccount, lenderAccount1, lenderAccount2, borrowerAccount, liquidatorAccount] = await ethers.getSigners();
 
-        // SafeMath
-        const safeMathLibraryFactory = await ethers.getContractFactory("SafeMath", ownerAccount);
-        const safeMathLibraryAsOwner = await safeMathLibraryFactory.deploy();
+        // MathHelper
+        const mathHelperLibraryFactory = await ethers.getContractFactory("MathHelper", ownerAccount);
+        const mathHelperLibraryAsOwner = await mathHelperLibraryFactory.deploy();
 
         // ERC20 Contract
         const erc20ContractFactory = await ethers.getContractFactory("ERC20Test", ownerAccount);
@@ -107,7 +107,7 @@ describe("Lending Platform Test", function () {
         uniswapRouterContractAsOwner = await uniswapRouterContractFactory.deploy();
 
         // LendingPlatform Contract
-        const lendingPlatformFactory = await ethers.getContractFactory("LendingPlatformTest", { libraries: { SafeMath: await safeMathLibraryAsOwner.getAddress() } }, ownerAccount);
+        const lendingPlatformFactory = await ethers.getContractFactory("LendingPlatformTest", { libraries: { MathHelper: await mathHelperLibraryAsOwner.getAddress() } }, ownerAccount);
         lendingPlatformAsOwner = await lendingPlatformFactory.deploy(usdtDecimalsCount, await erc20ContractAsOwner.getAddress(), await wethContractAsOwner.getAddress(), await aggregatorV3ContractAsOwner.getAddress(), await uniswapRouterContractAsOwner.getAddress());
 
         lendingPlatformAsLender1 = lendingPlatformAsOwner.connect(lenderAccount1);
