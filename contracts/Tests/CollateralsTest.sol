@@ -18,7 +18,7 @@ contract CollateralsTest is Collaterals
         return calculateLTV(_ethBorrowAmountInWei, _usdtCollateralAmount, _weiPerUSDT);
     }
 
-    function calculateLiquidationTest(uint256 _ethBorrowAmountInWei, uint256 _usdtCollateralAmount, uint256 _weiPerUSDT) internal pure returns (uint256) {
+    function calculateLiquidationTest(uint256 _ethBorrowAmountInWei, uint256 _usdtCollateralAmount, uint256 _weiPerUSDT) public pure returns (uint256) {
         return calculateLiquidation(_ethBorrowAmountInWei, _usdtCollateralAmount, _weiPerUSDT);
     }
 }

@@ -61,7 +61,7 @@ contract Loans is Ownable, ILoans {
         return calculateDebt(_loan.amount, _loan.borrowedTimestamp);
     }
 
-    function getLoanDetails(uint256 _loanId) external view onlyOwner returns(address _borrower, uint256 _amount, uint256 _collateralAmount, uint256 _borrowedTimestamp, uint256 _paidTimestamp, uint256 _totalDebt)
+    function getLoanDetails(uint256 _loanId) external view returns(address _borrower, uint256 _amount, uint256 _collateralAmount, uint256 _borrowedTimestamp, uint256 _paidTimestamp, uint256 _totalDebt)
     {
         _borrower = loanBorrowers[_loanId];
         

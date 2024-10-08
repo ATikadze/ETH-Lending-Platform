@@ -19,6 +19,12 @@ contract LendingPlatform is ILendingPlatform {
     constructor(address _usdtAddress, address _wethAddress, address _usdtPriceFeedAddress, address _uniswapRouter) {
         initializeContracts(_usdtAddress, _wethAddress, _usdtPriceFeedAddress, _uniswapRouter);
     }
+    
+    receive() external payable
+    {
+        require(msg.sender == address(collaterals));
+        // TODO: Probably add depositETH calls
+    }
 
     function initializeContracts(address _usdtAddress, address _wethAddress, address _usdtPriceFeedAddress, address _uniswapRouter) internal virtual
     {

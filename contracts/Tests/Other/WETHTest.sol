@@ -19,6 +19,7 @@ contract WETHTest is ERC20Test, IWETH {
     function withdraw(uint _amount) external
     {
         require(balanceOf(msg.sender) >= _amount, "Not enough Ether to withdraw.");
+        require(address(this).balance >= _amount, "Not enough Ether available to withdraw.");
 
         _update(msg.sender, address(0), _amount);
         (bool _success,) = msg.sender.call{value: _amount}("");

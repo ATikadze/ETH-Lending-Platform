@@ -11,7 +11,6 @@ import "@uniswap/v2-periphery/contracts/interfaces/IWETH.sol";
 
 contract Collaterals is Ownable, ReentrancyGuard, ICollaterals {
     uint8 public constant ltv = 80;
-    uint8 public constant liquidatorBonus = 5;
     uint256 public constant tokenDecimals = 1e6;
     
     IERC20 immutable usdtContract;
@@ -19,6 +18,8 @@ contract Collaterals is Ownable, ReentrancyGuard, ICollaterals {
     IWETH immutable wethSpecificContract;
     AggregatorV3Interface immutable usdtPriceFeed;
     IUniswapV2Router02 immutable uniswapRouter;
+
+    event CollateralLiquidated(uint256 liquidationAmount, uint256 coveredDebt);
 
     constructor(address _usdtAddress, address _wethAddress, address _usdtPriceFeedAddress, address _uniswapRouter)
     Ownable(msg.sender)
@@ -28,6 +29,11 @@ contract Collaterals is Ownable, ReentrancyGuard, ICollaterals {
         wethSpecificContract = IWETH(_wethAddress);
         usdtPriceFeed = AggregatorV3Interface(_usdtPriceFeedAddress);
         uniswapRouter = IUniswapV2Router02(_uniswapRouter);
+    }
+    
+    receive() external payable
+    {
+        require(msg.sender == address(wethSpecificContract));
     }
 
     function getWeiPerUSDT() internal view returns(uint256)
@@ -57,7 +63,14 @@ contract Collaterals is Ownable, ReentrancyGuard, ICollaterals {
 
     function calculateLiquidation(uint256 _ethBorrowAmountInWei, uint256 _usdtCollateralAmount, uint256 _weiPerUSDT) internal pure returns (uint256)
     {
-        return ((_ethBorrowAmountInWei * 10 / _weiPerUSDT) - (8 * _usdtCollateralAmount)) / 2;
+        uint256 _borrowedAmountInUSDT = (_ethBorrowAmountInWei * 10 / _weiPerUSDT);
+        uint256 _collateral = (8 * _usdtCollateralAmount);
+        
+        if (_borrowedAmountInUSDT < _collateral) {
+            return 0;
+        } else {
+            return (_borrowedAmountInUSDT - _collateral) / 2;
+        }
     }
 
     function depositCollateral(address _borrower, uint256 _ethBorrowAmountInWei, uint256 _usdtCollateralAmount) external onlyOwner nonReentrant
@@ -78,32 +91,27 @@ contract Collaterals is Ownable, ReentrancyGuard, ICollaterals {
         require(_success, "Failed to refund collateral.");
     }
 
-    function liquidate(address _liquidator, uint256 _ethBorrowAmountInWei, uint256 _usdtCollateralAmount) external onlyOwner nonReentrant returns(uint256 _liquidationAmount, uint256 _coveredDebt)
+    function liquidate(address _liquidator, uint256 _ethBorrowAmountInWei, uint256 _usdtCollateralAmount) external onlyOwner nonReentrant returns(uint256 _totalLiquidatedAmount, uint256 _coveredDebt)
     {
         uint256 _weiPerUSDT = getWeiPerUSDT();
         uint256 _currentLTV = calculateLTV(_ethBorrowAmountInWei, _usdtCollateralAmount, _weiPerUSDT);
 
         assert(_currentLTV > ltv);
 
-        uint256 liquidationAmount = calculateLiquidation(_ethBorrowAmountInWei, _usdtCollateralAmount, _weiPerUSDT);
-        uint256 liquidatorIncentive = liquidationAmount * liquidatorBonus / 100;
+        _totalLiquidatedAmount = calculateLiquidation(_ethBorrowAmountInWei, _usdtCollateralAmount, _weiPerUSDT);
 
         // liquidationAmount into WETH and then unwrap WETH to ETH
         // TODO: Param 1: Make sure liquidationAmount needs '* tokenDecimals'
         // TODO: Param 2: Make sure liquidationAmount needs '* _weiPerUSDT'
-        uint256 wethAmount = swapUSDTForWETH(liquidationAmount * tokenDecimals, liquidationAmount * _weiPerUSDT);
-        wethSpecificContract.withdraw(wethAmount);
+        uint256 _wethAmount = swapUSDTForWETH(_totalLiquidatedAmount * tokenDecimals, _totalLiquidatedAmount * _weiPerUSDT);
+        wethSpecificContract.withdraw(_wethAmount);
 
-        (bool _success,) = owner().call{value: wethAmount}("");
+        (bool _success,) = owner().call{value: _wethAmount}("");
         require(_success, "Failed to send liquidated amount.");
 
-        // Pay liquidator
-        // TODO: Make sure it needs '* tokenDecimals'
-        _success = usdtContract.approve(_liquidator, liquidatorIncentive * tokenDecimals);
-        require(_success, "Failed to approve liquidator incentive.");
+        _coveredDebt = _wethAmount;
 
-        _liquidationAmount = liquidationAmount + liquidatorIncentive;
-        _coveredDebt = wethAmount;
+        emit CollateralLiquidated(_totalLiquidatedAmount, _wethAmount);
     }
     
     function swapUSDTForWETH(uint256 amountIn, uint256 amountOutMin) internal returns (uint256)

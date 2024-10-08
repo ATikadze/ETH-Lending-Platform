@@ -18,6 +18,7 @@ describe("Lending Platform Test", function () {
     let lendingPlatformAsLender1;
     let lendingPlatformAsLender2;
     let lendingPlatformAsBorrower;
+    let lendingPlatformAsLiquidator;
 
     let loansContractAsOwner;
     let lendingPoolContractAsOwner;
@@ -30,11 +31,13 @@ describe("Lending Platform Test", function () {
     const totalDepositAmount = lender1DepositAmount + lender2DepositAmount;
 
     const borrowAmount = toWei(16);
-    const debtInterest = toWei(16) * BigInt(5) / BigInt(100);
+    const debtInterest = borrowAmount * BigInt(5) / BigInt(100);
     const borrowerDebt = borrowAmount + debtInterest;
 
+    const usdtDecimals = (10 ** 6);
+
     const usdtCollateral = 60_000;
-    const usdtCollateralWithDecimals = usdtCollateral * (10 ** 6);
+    const usdtCollateralWithDecimals = usdtCollateral * usdtDecimals;
     const usdtTotalAmount = usdtCollateralWithDecimals * 1.7;
 
     let preLoanBorrowerBalance;
@@ -50,16 +53,37 @@ describe("Lending Platform Test", function () {
     const postLoanAvailableAmount1 = lender1DepositAmount - lender1LentAmount;
     const postLoanAvailableAmount2 = lender2DepositAmount - lender2LentAmount;
 
-    const lender1InterestAmount = BigInt((Number(debtInterest) * (lender1Share * 1000)) / 1000);
-    const lender2InterestAmount = BigInt((Number(debtInterest) * (lender2Share * 1000)) / 1000);
+    const loanId = 1;
+
+    const usdtPerEther1 = 2500;
+    const usdtPerEther2 = 3500;
+
+    const weiPerUSDT1 = BigInt(10 ** 8) / BigInt(usdtPerEther1) * BigInt(10 ** 10)
+    const weiPerUSDT2 = BigInt(10 ** 8) / BigInt(usdtPerEther2) * BigInt(10 ** 10);
+
+    const uniswapWETHMintAmount = (BigInt(usdtCollateral) * BigInt(10 ** 18)) / BigInt(usdtPerEther2);
+    const wethETHBalance = uniswapWETHMintAmount * BigInt(2);
+
+    const liquidationAmount = ((borrowAmount * BigInt(10) / weiPerUSDT2) - BigInt(8 * usdtCollateral)) / BigInt(2);
+    const liquidationAmountWithDecimals = liquidationAmount * BigInt(usdtDecimals);
+    const liquidationCoveredDebt = liquidationAmount * weiPerUSDT2;
+
+    const postLiquidationBorrowAmount = borrowAmount - liquidationCoveredDebt;
+
+    const postLiquidationUSDTCollateral = BigInt(usdtCollateral) - liquidationAmount;
+    const postLiquidationUSDTCollateralWithDecimals = postLiquidationUSDTCollateral * BigInt(usdtDecimals);
+
+    const postLiquidationDebtInterest = postLiquidationBorrowAmount * BigInt(5) / BigInt(100);
+    const postLiquidationBorrowerDebt = postLiquidationBorrowAmount + postLiquidationDebtInterest;
+
+    const lender1InterestAmount = BigInt((Number(postLiquidationDebtInterest) * (lender1Share * 1000)) / 1000);
+    const lender2InterestAmount = BigInt((Number(postLiquidationDebtInterest) * (lender2Share * 1000)) / 1000);
 
     const postRepayAvailableAmount1 = lender1DepositAmount + lender1InterestAmount;
     const postRepayAvailableAmount2 = lender2DepositAmount + lender2InterestAmount;
 
-    const loanId = 1;
-
     before(async function () {
-        [ownerAccount, lenderAccount1, lenderAccount2, borrowerAccount] = await ethers.getSigners();
+        [ownerAccount, lenderAccount1, lenderAccount2, borrowerAccount, liquidatorAccount] = await ethers.getSigners();
 
         // SafeMath
         const safeMathLibraryFactory = await ethers.getContractFactory("SafeMath", ownerAccount);
@@ -90,6 +114,7 @@ describe("Lending Platform Test", function () {
         lendingPlatformAsLender1 = lendingPlatformAsOwner.connect(lenderAccount1);
         lendingPlatformAsLender2 = lendingPlatformAsOwner.connect(lenderAccount2);
         lendingPlatformAsBorrower = lendingPlatformAsOwner.connect(borrowerAccount);
+        lendingPlatformAsLiquidator = lendingPlatformAsOwner.connect(liquidatorAccount);
 
         // Other Contracts
         loansContractAsOwner = new ethers.Contract(await lendingPlatformAsOwner.loans(), require("../artifacts/contracts/Tests/LoansTest.sol/LoansTest.json").abi, ownerAccount);
@@ -104,6 +129,21 @@ describe("Lending Platform Test", function () {
         preLoanBorrowerBalance = await getAccountWeiBalance(borrowerAccount);
         preLoanLender1Balance = await getAccountWeiBalance(lenderAccount1);
         preLoanLender2Balance = await getAccountWeiBalance(lenderAccount2);
+
+        await aggregatorV3ContractAsOwner.setUSDTPricePerEther(usdtPerEther1);
+
+        await wethContractAsOwner.mint(await uniswapRouterContractAsOwner.getAddress(), uniswapWETHMintAmount);
+        await wethContractAsOwner.deposit({ value: wethETHBalance });
+
+        // Logs
+        /* console.log("USDT Contract: " + await erc20ContractAsOwner.getAddress());
+        console.log("WETH Contract: " + await wethContractAsOwner.getAddress());
+        console.log("Aggregator V3 Contract Contract: " + await aggregatorV3ContractAsOwner.getAddress());
+        console.log("Uniswap Router Contract: " + await uniswapRouterContractAsOwner.getAddress());
+        console.log("Lending Platform Contract: " + await lendingPlatformAsOwner.getAddress());
+        console.log("Loans Contract: " + await lendingPlatformAsOwner.lendingPool());
+        console.log("Lending Pool Contract: " + await lendingPlatformAsOwner.loans());
+        console.log("Collaterals Contract: " + await lendingPlatformAsOwner.collaterals()); */
     });
 
     describe("Lender Deposits", async function () {
@@ -128,15 +168,18 @@ describe("Lending Platform Test", function () {
     });
 
     describe("Collaterals", async function () {
-        it("Validate LTV", async function () {
+        it("Check LTV", async function () {
             expect(await collateralsContractAsOwner.calculateLTVTest(borrowAmount, usdtCollateral, await collateralsContractAsOwner.getWeiPerUSDTTest()))
-                .to.be.lessThan(await collateralsContractAsOwner.ltv());
+                .to.be.lessThanOrEqual(await collateralsContractAsOwner.ltv());
 
             expect(await collateralsContractAsOwner.validateLTV(borrowAmount, usdtCollateral / 2))
                 .to.be.equal(false);
 
             expect(await collateralsContractAsOwner.validateLTV(borrowAmount, usdtCollateral))
                 .to.be.equal(true);
+
+            expect(await collateralsContractAsOwner.calculateLiquidationTest(borrowAmount, usdtCollateral, await collateralsContractAsOwner.getWeiPerUSDTTest()))
+                .to.be.equal(0);
         });
     });
 
@@ -177,17 +220,66 @@ describe("Lending Platform Test", function () {
         });
     });
 
+    describe("Liquidation", async function () {
+        it("Increase ETH Price + Liquidation/LTV Checks", async function () {
+            await aggregatorV3ContractAsOwner.setUSDTPricePerEther(usdtPerEther2);
+
+            expect(await collateralsContractAsOwner.calculateLTVTest(borrowAmount, usdtCollateral, await collateralsContractAsOwner.getWeiPerUSDTTest()))
+                .to.be.greaterThan(await collateralsContractAsOwner.ltv());
+
+            expect(await collateralsContractAsOwner.calculateLiquidationTest(borrowAmount, usdtCollateral, await collateralsContractAsOwner.getWeiPerUSDTTest()))
+                .to.be.equal(liquidationAmount);
+        });
+
+        it("Liquidate", async function () {
+            await expect(await lendingPlatformAsLiquidator.liquidateCollateral(loanId))
+                .to.emit(collateralsContractAsOwner, "CollateralLiquidated")
+                .withArgs(liquidationAmount, liquidationCoveredDebt);
+        });
+
+        it("Check Debt/Collateral", async function () {
+            const [borrower, amount, collateralAmount, borrowedTimestamp, paidTimestamp, totalDebt] = await loansContractAsOwner.getLoanDetails(loanId);
+
+            expect(amount).to.be.equal(postLiquidationBorrowAmount);
+
+            expect(collateralAmount).to.be.equal(postLiquidationUSDTCollateral);
+
+            expect(totalDebt).to.be.equal(postLiquidationBorrowerDebt);
+        });
+
+        it("Check LTV", async function () {
+            expect(await collateralsContractAsOwner.calculateLTVTest(postLiquidationBorrowAmount, postLiquidationUSDTCollateral, await collateralsContractAsOwner.getWeiPerUSDTTest()))
+                .to.be.lessThanOrEqual(await collateralsContractAsOwner.ltv());
+        });
+
+        it("Check USDT balance", async function () {
+            expect(await erc20ContractAsBorrower.balanceOf(await collateralsContractAsOwner.getAddress()))
+                .to.be.equal(postLiquidationUSDTCollateralWithDecimals);
+        });
+
+        it("Check ETH balance", async function () {
+            expect(await getAccountWeiBalance(await lendingPoolContractAsOwner.getAddress()))
+                .to.be.equal(totalDepositAmount - borrowAmount + liquidationCoveredDebt);
+
+            expect(await lendingPlatformAsLender1.getAvailableAmount())
+                .to.be.equal(postLoanAvailableAmount1 + BigInt((liquidationCoveredDebt * BigInt((lender1Share * 1000))) / BigInt(1000)));
+
+            expect(await lendingPlatformAsLender2.getAvailableAmount())
+                .to.be.equal(postLoanAvailableAmount2 + BigInt((liquidationCoveredDebt * BigInt((lender2Share * 1000))) / BigInt(1000)));
+        });
+    });
+
     describe("Repayment", async function () {
         before("Repay", async function () {
-            await lendingPlatformAsBorrower.repayETHDebt(loanId, { value: borrowerDebt });
+            await lendingPlatformAsBorrower.repayETHDebt(loanId, { value: postLiquidationBorrowerDebt });
         });
 
         it("Check ETH balance", async function () {
             expect(await getAccountWeiBalance(borrowerAccount))
-                .to.be.closeTo(preLoanBorrowerBalance - debtInterest, weiComparisonTolerance);
+                .to.be.closeTo(preLoanBorrowerBalance + liquidationCoveredDebt - postLiquidationDebtInterest, weiComparisonTolerance);
 
             expect(await getAccountWeiBalance(await lendingPoolContractAsOwner.getAddress()))
-                .to.be.equal(totalDepositAmount + debtInterest);
+                .to.be.equal(totalDepositAmount + postLiquidationDebtInterest);
 
             expect(await lendingPlatformAsLender1.getAvailableAmount())
                 .to.be.equal(postRepayAvailableAmount1);
@@ -198,7 +290,7 @@ describe("Lending Platform Test", function () {
 
         it("Check USDT balance", async function () {
             expect(await erc20ContractAsBorrower.balanceOf(borrowerAccount))
-                .to.be.equal(usdtTotalAmount);
+                .to.be.equal(BigInt(usdtTotalAmount) - liquidationAmountWithDecimals);
 
             expect(await erc20ContractAsBorrower.balanceOf(await collateralsContractAsOwner.getAddress()))
                 .to.be.equal(0);
