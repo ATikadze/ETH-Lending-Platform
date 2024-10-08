@@ -155,26 +155,24 @@ contract Collaterals is Ownable, ReentrancyGuard, ICollaterals {
     /// @param _liquidator Address of the liquidator
     /// @param _ethBorrowAmountInWei Amount of ETH borrowed (in wei)
     /// @param _usdtCollateralAmount Amount of USDT collateral provided
-    /// @return _totalLiquidatedAmount Total amount of collateral liquidated
-    /// @return _coveredDebt Amount of debt covered by liquidation
-    function liquidate(address _liquidator, uint256 _ethBorrowAmountInWei, uint256 _usdtCollateralAmount) external onlyOwner nonReentrant returns (uint256 _totalLiquidatedAmount, uint256 _coveredDebt)
+    /// @return _totalLiquidatedUSDTAmount Total amount of collateral liquidated
+    /// @return _coveredDebtInWEI Amount of debt covered by liquidation
+    function liquidate(address _liquidator, uint256 _ethBorrowAmountInWei, uint256 _usdtCollateralAmount) external onlyOwner nonReentrant returns (uint256 _totalLiquidatedUSDTAmount, uint256 _coveredDebtInWEI)
     {
         uint256 _weiPerUSDT = getWeiPerUSDT();
         uint256 _currentLTV = calculateLTV(_ethBorrowAmountInWei, _usdtCollateralAmount, _weiPerUSDT);
 
         assert(_currentLTV > ltv);
 
-        _totalLiquidatedAmount = calculateLiquidation(_ethBorrowAmountInWei, _usdtCollateralAmount, _weiPerUSDT);
+        _totalLiquidatedUSDTAmount = calculateLiquidation(_ethBorrowAmountInWei, _usdtCollateralAmount, _weiPerUSDT);
 
-        uint256 _wethAmount = swapUSDTForWETH(getAmountWithDecimals(_totalLiquidatedAmount), _totalLiquidatedAmount * _weiPerUSDT);
-        wethContract.withdraw(_wethAmount);
+        _coveredDebtInWEI = swapUSDTForWETH(getAmountWithDecimals(_totalLiquidatedUSDTAmount), _totalLiquidatedUSDTAmount * _weiPerUSDT);
+        wethContract.withdraw(_coveredDebtInWEI);
 
-        (bool _success,) = owner().call{value: _wethAmount}("");
+        (bool _success,) = owner().call{value: _coveredDebtInWEI}("");
         require(_success, "Failed to send liquidated amount.");
 
-        _coveredDebt = _wethAmount;
-
-        emit CollateralLiquidated(_totalLiquidatedAmount, _wethAmount);
+        emit CollateralLiquidated(_totalLiquidatedUSDTAmount, _coveredDebtInWEI);
     }
 
     /// @notice Swaps USDT for WETH using Uniswap V2
