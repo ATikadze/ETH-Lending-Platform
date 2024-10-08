@@ -9,64 +9,108 @@ import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "@chainlink/contracts/src/v0.8/shared/interfaces/AggregatorV3Interface.sol";
 import "@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router02.sol";
 
+/// @title Collaterals Contract
+/// @notice This contract manages collateral deposits, withdrawals, and liquidation for borrowers.
 contract Collaterals is Ownable, ReentrancyGuard, ICollaterals {
+
+    /// @notice The maximum Loan-to-Value (LTV) ratio allowed for collateralized loans, set to 80%
     uint8 public constant ltv = 80;
+
+    /// @notice Number of decimals for the token used in the collateral (USDT)
     uint256 public immutable tokenDecimalsCount;
     
+    /// @notice Interface for the USDT token contract
     IERC20 immutable usdtContract;
+
+    /// @notice Interface for the custom Wrapped ETH (WETH) contract
     ICustomWETH immutable wethContract;
+
+    /// @notice Interface for fetching the price of USDT in ETH via Chainlink price feed
     AggregatorV3Interface immutable usdtPriceFeed;
+
+    /// @notice Uniswap V2 router interface for swapping tokens
     IUniswapV2Router02 immutable uniswapRouter;
 
+    /// @notice Event emitted when collateral is deposited by a borrower
     event CollateralDeposited(address borrower, uint256 ethBorrowAmountInWei, uint256 usdtCollateralAmount);
+
+    /// @notice Event emitted when collateral is withdrawn by a borrower
     event CollateralWithdrawn(address borrower, uint256 usdtCollateralAmount);
+
+    /// @notice Event emitted when collateral is liquidated due to an invalid Loan-to-Value (LTV) ratio
     event CollateralLiquidated(uint256 liquidationAmount, uint256 coveredDebt);
 
-    constructor(uint256 _tokenDecimalsCount, address _usdtAddress, address _wethAddress, address _usdtPriceFeedAddress, address _uniswapRouter)
+    /// @notice Constructor to initialize contract with necessary parameters
+    /// @param _tokenDecimalsCount The number of decimals for USDT token
+    /// @param _usdtAddress The address of the USDT token contract
+    /// @param _wethAddress The address of the Wrapped ETH (WETH) token contract
+    /// @param _usdtPriceFeedAddress The address of the Chainlink price feed for USDT/ETH
+    /// @param _uniswapRouterAddress The address of the Uniswap V2 router contract
+    constructor(uint256 _tokenDecimalsCount, address _usdtAddress, address _wethAddress, address _usdtPriceFeedAddress, address _uniswapRouterAddress)
     Ownable(msg.sender)
     {
         tokenDecimalsCount = _tokenDecimalsCount;
         usdtContract = IERC20(_usdtAddress);
         wethContract = ICustomWETH(_wethAddress);
         usdtPriceFeed = AggregatorV3Interface(_usdtPriceFeedAddress);
-        uniswapRouter = IUniswapV2Router02(_uniswapRouter);
-    }
-    
-    receive() external payable
-    {
-        require(msg.sender == address(wethContract));
+        uniswapRouter = IUniswapV2Router02(_uniswapRouterAddress);
     }
 
-    function getAmountWithDecimals(uint256 _amount) internal view returns(uint256)
+    /// @notice Allows the contract to receive ETH, but only from the WETH contract
+    receive() external payable
+    {
+        require(msg.sender == address(wethContract), "Only WETH contract can send ETH");
+    }
+
+    /// @notice Internal function to adjust amounts based on token decimals
+    /// @param _amount Amount of USDT to convert
+    /// @return Converted amount with decimals
+    function getAmountWithDecimals(uint256 _amount) internal view returns (uint256)
     {
         return tokenDecimalsCount == 0 ? _amount : _amount * (10 ** tokenDecimalsCount);
     }
 
-    function getWeiPerUSDT() internal view returns(uint256)
+    /// @notice Internal function to retrieve the current price of USDT in WEI from the Chainlink price feed
+    /// @return The current price of 1 USDT in wei
+    function getWeiPerUSDT() internal view returns (uint256)
     {
-        (,int256 price,,,) = usdtPriceFeed.latestRoundData();
+        (, int256 price,,,) = usdtPriceFeed.latestRoundData();
         
         require(price > 0, "Failed to retrieve price feed.");
-
+        
         // latestRoundDate() returns the price multiplied by 10^8. So by multiplying it by 1e10 we normalize the value into WEI.
         uint256 _weiPerUSDT = uint256(price) * 1e10;
 
         return _weiPerUSDT;
     }
 
-    function calculateLTV(uint256 _ethBorrowAmountInWei, uint256 _usdtCollateralAmount, uint256 _weiPerUSDT) internal pure returns(uint256)
+    /// @notice Internal function to calculate Loan-to-Value (LTV) ratio
+    /// @param _ethBorrowAmountInWei Amount of ETH borrowed (in wei)
+    /// @param _usdtCollateralAmount Amount of USDT collateral provided
+    /// @param _weiPerUSDT Current price of USDT in wei
+    /// @return Calculated LTV ratio as a percentage
+    function calculateLTV(uint256 _ethBorrowAmountInWei, uint256 _usdtCollateralAmount, uint256 _weiPerUSDT) internal pure returns (uint256)
     {
         return (_ethBorrowAmountInWei * 100) / (_weiPerUSDT * _usdtCollateralAmount);
     }
 
-    function validateLTV(uint256 _ethBorrowAmountInWei, uint256 _usdtCollateralAmount) public view returns(bool)
+    /// @notice Public function to validate the Loan-to-Value ratio
+    /// @param _ethBorrowAmountInWei Amount of ETH borrowed (in wei)
+    /// @param _usdtCollateralAmount Amount of USDT collateral provided
+    /// @return True if LTV is valid, otherwise false
+    function validateLTV(uint256 _ethBorrowAmountInWei, uint256 _usdtCollateralAmount) public view returns (bool)
     {
         uint256 _weiPerUSDT = getWeiPerUSDT();
         uint256 _currentLTV = calculateLTV(_ethBorrowAmountInWei, _usdtCollateralAmount, _weiPerUSDT);
-
+        
         return _currentLTV <= ltv;
     }
 
+    /// @notice Internal function to calculate liquidation amount
+    /// @param _ethBorrowAmountInWei Amount of ETH borrowed (in wei)
+    /// @param _usdtCollateralAmount Amount of USDT collateral provided
+    /// @param _weiPerUSDT Current price of USDT in wei
+    /// @return Amount to liquidate
     function calculateLiquidation(uint256 _ethBorrowAmountInWei, uint256 _usdtCollateralAmount, uint256 _weiPerUSDT) internal pure returns (uint256)
     {
         uint256 _borrowedAmountInUSDT = (_ethBorrowAmountInWei * 10 / _weiPerUSDT);
@@ -79,12 +123,15 @@ contract Collaterals is Ownable, ReentrancyGuard, ICollaterals {
         }
     }
 
+    /// @notice Allows the contract owner to deposit collateral for a borrower
+    /// @param _borrower Address of the borrower
+    /// @param _ethBorrowAmountInWei Amount of ETH borrowed (in wei)
+    /// @param _usdtCollateralAmount Amount of USDT collateral provided
     function depositCollateral(address _borrower, uint256 _ethBorrowAmountInWei, uint256 _usdtCollateralAmount) external onlyOwner nonReentrant
     {
         require(validateLTV(_ethBorrowAmountInWei, _usdtCollateralAmount), "Invalid LTV: Borrowed amount must be less than 80% of the collateral.");
         
         uint256 _usdtAmount = getAmountWithDecimals(_usdtCollateralAmount);
-        
         require(usdtContract.allowance(_borrower, address(this)) >= _usdtAmount, "No allowance for the collateral funds.");
         
         bool _success = usdtContract.transferFrom(_borrower, address(this), _usdtAmount);
@@ -93,6 +140,9 @@ contract Collaterals is Ownable, ReentrancyGuard, ICollaterals {
         emit CollateralDeposited(_borrower, _ethBorrowAmountInWei, _usdtCollateralAmount);
     }
 
+    /// @notice Allows the contract owner to withdraw collateral for a borrower
+    /// @param _borrower Address of the borrower
+    /// @param _usdtCollateralAmount Amount of USDT collateral to withdraw
     function withdrawCollateral(address _borrower, uint256 _usdtCollateralAmount) external onlyOwner nonReentrant
     {
         bool _success = usdtContract.transfer(_borrower, getAmountWithDecimals(_usdtCollateralAmount));
@@ -101,7 +151,13 @@ contract Collaterals is Ownable, ReentrancyGuard, ICollaterals {
         emit CollateralWithdrawn(_borrower, _usdtCollateralAmount);
     }
 
-    function liquidate(address _liquidator, uint256 _ethBorrowAmountInWei, uint256 _usdtCollateralAmount) external onlyOwner nonReentrant returns(uint256 _totalLiquidatedAmount, uint256 _coveredDebt)
+    /// @notice Allows the contract owner to liquidate collateral when LTV ratio is exceeded
+    /// @param _liquidator Address of the liquidator
+    /// @param _ethBorrowAmountInWei Amount of ETH borrowed (in wei)
+    /// @param _usdtCollateralAmount Amount of USDT collateral provided
+    /// @return _totalLiquidatedAmount Total amount of collateral liquidated
+    /// @return _coveredDebt Amount of debt covered by liquidation
+    function liquidate(address _liquidator, uint256 _ethBorrowAmountInWei, uint256 _usdtCollateralAmount) external onlyOwner nonReentrant returns (uint256 _totalLiquidatedAmount, uint256 _coveredDebt)
     {
         uint256 _weiPerUSDT = getWeiPerUSDT();
         uint256 _currentLTV = calculateLTV(_ethBorrowAmountInWei, _usdtCollateralAmount, _weiPerUSDT);
@@ -120,7 +176,11 @@ contract Collaterals is Ownable, ReentrancyGuard, ICollaterals {
 
         emit CollateralLiquidated(_totalLiquidatedAmount, _wethAmount);
     }
-    
+
+    /// @notice Swaps USDT for WETH using Uniswap V2
+    /// @param amountIn Amount of USDT to swap
+    /// @param amountOutMin Minimum amount of WETH to receive from the swap
+    /// @return Amount of WETH received from the swap
     function swapUSDTForWETH(uint256 amountIn, uint256 amountOutMin) internal returns (uint256)
     {
         usdtContract.approve(address(uniswapRouter), amountIn);
