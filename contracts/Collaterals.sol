@@ -2,20 +2,19 @@
 pragma solidity ^0.8.0;
 
 import "./Interfaces/ICollaterals.sol";
+import "./Interfaces/ICustomWETH.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "@chainlink/contracts/src/v0.8/shared/interfaces/AggregatorV3Interface.sol";
 import "@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router02.sol";
-import "@uniswap/v2-periphery/contracts/interfaces/IWETH.sol";
 
 contract Collaterals is Ownable, ReentrancyGuard, ICollaterals {
     uint8 public constant ltv = 80;
     uint256 public immutable tokenDecimalsCount;
     
     IERC20 immutable usdtContract;
-    IERC20 immutable wethContract;
-    IWETH immutable wethSpecificContract;
+    ICustomWETH immutable wethContract;
     AggregatorV3Interface immutable usdtPriceFeed;
     IUniswapV2Router02 immutable uniswapRouter;
 
@@ -26,15 +25,14 @@ contract Collaterals is Ownable, ReentrancyGuard, ICollaterals {
     {
         tokenDecimalsCount = _tokenDecimalsCount;
         usdtContract = IERC20(_usdtAddress);
-        wethContract = IERC20(_wethAddress);
-        wethSpecificContract = IWETH(_wethAddress);
+        wethContract = ICustomWETH(_wethAddress);
         usdtPriceFeed = AggregatorV3Interface(_usdtPriceFeedAddress);
         uniswapRouter = IUniswapV2Router02(_uniswapRouter);
     }
     
     receive() external payable
     {
-        require(msg.sender == address(wethSpecificContract));
+        require(msg.sender == address(wethContract));
     }
 
     function getAmountWithDecimals(uint256 _amount) internal view returns(uint256)
@@ -107,7 +105,7 @@ contract Collaterals is Ownable, ReentrancyGuard, ICollaterals {
         _totalLiquidatedAmount = calculateLiquidation(_ethBorrowAmountInWei, _usdtCollateralAmount, _weiPerUSDT);
 
         uint256 _wethAmount = swapUSDTForWETH(getAmountWithDecimals(_totalLiquidatedAmount), _totalLiquidatedAmount * _weiPerUSDT);
-        wethSpecificContract.withdraw(_wethAmount);
+        wethContract.withdraw(_wethAmount);
 
         (bool _success,) = owner().call{value: _wethAmount}("");
         require(_success, "Failed to send liquidated amount.");
