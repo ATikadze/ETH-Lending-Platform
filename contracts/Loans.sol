@@ -20,6 +20,8 @@ contract Loans is Ownable, ILoans {
     mapping(uint256 => Loan) loans;
 
     event LoanCreated(uint256 loanId, address borrower, uint256 amount);
+    event LoanMarkedAsPaid(uint256 loanId, uint256 paidTimestamp);
+    event CollateralLiquidated(uint256 loanId, uint256 coveredDebt, uint256 liquidatedCollateral);
 
     constructor() Ownable(msg.sender) {}
 
@@ -92,12 +94,17 @@ contract Loans is Ownable, ILoans {
     {
         require(!loanPaid(_loanId), "Loan already paid.");
         
-        loans[_loanId].paidTimestamp = block.timestamp;
+        uint256 _paidTimestamp = block.timestamp;
+        loans[_loanId].paidTimestamp = _paidTimestamp;
+
+        emit LoanMarkedAsPaid(_loanId, _paidTimestamp);
     }
 
     function liquidateCollateral(uint256 _loanId, uint256 _coveredDebt, uint256 _liquidatedCollateral) external onlyOwner
     {
         loans[_loanId].amount -= _coveredDebt;
         loans[_loanId].collateralAmount -= _liquidatedCollateral;
+        
+        emit CollateralLiquidated(_loanId, _coveredDebt, _liquidatedCollateral);
     }
 }

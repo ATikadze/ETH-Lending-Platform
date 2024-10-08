@@ -15,6 +15,11 @@ contract LendingPool is Ownable, ReentrancyGuard, ILendingPool {
     mapping(address => uint256) lenderAmounts;
     mapping(address => uint256) lenderAvailableAmounts;
     mapping(address => bool) lenderHasDeposited;
+
+    event Deposited(address lender, uint256 amount);
+    event Withdrawn(address lender, uint256 amount);
+    event Lent(address borrower, uint256 amount);
+    event Repaid(address borrower, uint256 amount);
     
     constructor() Ownable(msg.sender) {}
     
@@ -39,6 +44,8 @@ contract LendingPool is Ownable, ReentrancyGuard, ILendingPool {
         }
 
         updateBalance(_lender, msg.value, true);
+
+        emit Deposited(_lender, msg.value);
     }
 
     function withdraw(address _lender, uint256 _amount) external onlyOwner nonReentrant {
@@ -48,6 +55,8 @@ contract LendingPool is Ownable, ReentrancyGuard, ILendingPool {
 
         (bool _success, ) = _lender.call{value: _amount}("");
         require(_success, "Failed to withdraw funds.");
+        
+        emit Withdrawn(_lender, _amount);
     }
     
     function lend(address _borrower, uint256 _amount) external onlyOwner nonReentrant
@@ -69,6 +78,8 @@ contract LendingPool is Ownable, ReentrancyGuard, ILendingPool {
         
         (bool _success, ) = _borrower.call{value: _amount}("");
         require(_success, "Failed to lend Ether.");
+
+        emit Lent(_borrower, _amount);
     }
 
     function repay(address _borrower) external payable onlyOwner nonReentrant
@@ -87,5 +98,7 @@ contract LendingPool is Ownable, ReentrancyGuard, ILendingPool {
             uint256 _debtShare = _lenderAvailableAmount * msg.value / _availableETH;
             lenderAvailableAmounts[_lender] += _debtShare;
         }
+
+        emit Repaid(_borrower, msg.value);
     }
 }

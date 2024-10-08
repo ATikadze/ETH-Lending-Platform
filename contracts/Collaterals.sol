@@ -18,6 +18,8 @@ contract Collaterals is Ownable, ReentrancyGuard, ICollaterals {
     AggregatorV3Interface immutable usdtPriceFeed;
     IUniswapV2Router02 immutable uniswapRouter;
 
+    event CollateralDeposited(address borrower, uint256 ethBorrowAmountInWei, uint256 usdtCollateralAmount);
+    event CollateralWithdrawn(address borrower, uint256 usdtCollateralAmount);
     event CollateralLiquidated(uint256 liquidationAmount, uint256 coveredDebt);
 
     constructor(uint256 _tokenDecimalsCount, address _usdtAddress, address _wethAddress, address _usdtPriceFeedAddress, address _uniswapRouter)
@@ -87,12 +89,16 @@ contract Collaterals is Ownable, ReentrancyGuard, ICollaterals {
         
         bool _success = usdtContract.transferFrom(_borrower, address(this), _usdtAmount);
         require(_success, "Failed to deposit collateral.");
+
+        emit CollateralDeposited(_borrower, _ethBorrowAmountInWei, _usdtCollateralAmount);
     }
 
     function withdrawCollateral(address _borrower, uint256 _usdtCollateralAmount) external onlyOwner nonReentrant
     {
         bool _success = usdtContract.transfer(_borrower, getAmountWithDecimals(_usdtCollateralAmount));
         require(_success, "Failed to refund collateral.");
+
+        emit CollateralWithdrawn(_borrower, _usdtCollateralAmount);
     }
 
     function liquidate(address _liquidator, uint256 _ethBorrowAmountInWei, uint256 _usdtCollateralAmount) external onlyOwner nonReentrant returns(uint256 _totalLiquidatedAmount, uint256 _coveredDebt)
