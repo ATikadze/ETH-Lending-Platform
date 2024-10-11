@@ -2,13 +2,14 @@
 pragma solidity ^0.8.27;
 
 import "./MathHelper.sol";
+import "./Interfaces/IETHErrors.sol";
 import "./Interfaces/ILendingPool.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 /// @title LendingPool Contract
 /// @notice This contract manages deposits, withdrawals, and lending for the ETH lending platform.
-contract LendingPool is Ownable, ReentrancyGuard, ILendingPool {
+contract LendingPool is Ownable, ReentrancyGuard, ILendingPool, IETHErrors {
     
     using MathHelper for uint256;
 
@@ -72,7 +73,8 @@ contract LendingPool is Ownable, ReentrancyGuard, ILendingPool {
     /// @notice Allows the contract owner to deposit ETH on behalf of a lender
     /// @param _lender The address of the lender
     function deposit(address _lender) external payable onlyOwner {
-        require(msg.value > 0, "Lending amount must be greater than 0!");
+        if (msg.value == 0)
+            revert InsufficientEtherSent(msg.value, 0);
 
         if (!lenderHasDeposited[_lender])
         {
@@ -89,12 +91,15 @@ contract LendingPool is Ownable, ReentrancyGuard, ILendingPool {
     /// @param _lender The address of the lender
     /// @param _amount The amount of ETH to withdraw
     function withdraw(address _lender, uint256 _amount) external onlyOwner nonReentrant {
-        require(lenderAvailableAmounts[_lender] >= _amount, "Not enough available amount to withdraw.");
+        if (lenderAvailableAmounts[_lender] < _amount)
+            revert InsufficientEtherBalance(_amount, lenderAvailableAmounts[_lender]);
 
         _updateBalance(_lender, _amount, false);
 
         (bool _success, ) = _lender.call{value: _amount}("");
-        require(_success, "Failed to withdraw funds.");
+        
+        if (!_success)
+            revert ETHTransferFailed(_lender, _amount);
         
         emit Withdrawn(_lender, _amount);
     }
@@ -104,9 +109,10 @@ contract LendingPool is Ownable, ReentrancyGuard, ILendingPool {
     /// @param _amount The amount of ETH to lend
     function lend(address _borrower, uint256 _amount) external onlyOwner nonReentrant
     {
-        uint256 availableETH = address(this).balance;
+        uint256 _availableETH = address(this).balance;
 
-        require(availableETH >= _amount, "Not enough available Ether to lend.");
+        if (_availableETH < _amount)
+            revert InsufficientEtherBalance(_amount, _availableETH);
 
         for (uint256 i = 0; i < lenders.length; i++) {
             address _lender = lenders[i];
@@ -115,12 +121,14 @@ contract LendingPool is Ownable, ReentrancyGuard, ILendingPool {
             if (_lenderAvailableAmount == 0 && _borrower == _lender)
                 continue;
 
-            uint256 _lentAmount = _lenderAvailableAmount * _amount / availableETH;
+            uint256 _lentAmount = _lenderAvailableAmount * _amount / _availableETH;
             lenderAvailableAmounts[_lender] -= _lentAmount;
         }
 
         (bool _success, ) = _borrower.call{value: _amount}("");
-        require(_success, "Failed to lend Ether.");
+        
+        if (!_success)
+            revert ETHTransferFailed(_borrower, _amount);
 
         emit Lent(_borrower, _amount);
     }
@@ -129,7 +137,8 @@ contract LendingPool is Ownable, ReentrancyGuard, ILendingPool {
     /// @param _borrower The address of the borrower
     function repay(address _borrower) external payable onlyOwner nonReentrant
     {
-        require(msg.value > 0, "Ether amount must be greater than 0.");
+        if (msg.value == 0)
+            revert InsufficientEtherSent(msg.value, 0);
 
         uint256 _availableETH = address(this).balance - msg.value;
 

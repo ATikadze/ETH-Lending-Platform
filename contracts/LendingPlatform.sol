@@ -8,10 +8,11 @@ import "./Interfaces/ILoans.sol";
 import "./Interfaces/ILendingPool.sol";
 import "./Interfaces/ICollaterals.sol";
 import "./Interfaces/ILendingPlatform.sol";
+import "./Interfaces/IETHErrors.sol";
 
 /// @title LendingPlatform Contract
 /// @notice This contract manages the interactions between loans, lending pool, and collaterals for the ETH lending platform.
-contract LendingPlatform is ILendingPlatform {
+contract LendingPlatform is ILendingPlatform, IETHErrors {
 
     /// @notice The Loans contract that handles loan creation and repayment
     ILoans public loans;
@@ -92,7 +93,9 @@ contract LendingPlatform is ILendingPlatform {
         (address _borrower,, uint256 _collateralAmount,,, uint256 _totalDebt) = loans.getLoanDetails(_loanId);
 
         require(msg.sender == _borrower, "Only the original borrower can repay the debt.");
-        require(msg.value >= _totalDebt, "Ether amount must equal to or be greater than the debt.");
+
+        if (msg.value < _totalDebt)
+            revert InsufficientEtherSent(msg.value, _totalDebt);
         
         lendingPool.repay{value: _totalDebt}(_borrower);
         collaterals.withdrawCollateral(msg.sender, _collateralAmount);
@@ -102,7 +105,9 @@ contract LendingPlatform is ILendingPlatform {
         {
             uint256 _refund = msg.value - _totalDebt;
             (bool _success,) = msg.sender.call{value: _refund}("");
-            require(_success, "Failed to refund extra Ether.");
+
+            if (!_success)
+                revert ETHTransferFailed(msg.sender, _refund);
         }
     }
 

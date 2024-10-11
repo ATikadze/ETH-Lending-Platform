@@ -2,6 +2,8 @@
 pragma solidity ^0.8.27;
 
 import "./Interfaces/ICollaterals.sol";
+import "./Interfaces/IETHErrors.sol";
+import "./Interfaces/ITokenErrors.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
@@ -11,7 +13,7 @@ import "@uniswap/v2-periphery/contracts/interfaces/IWETH.sol";
 
 /// @title Collaterals Contract
 /// @notice This contract manages collateral deposits, withdrawals, and liquidation for borrowers.
-contract Collaterals is Ownable, ReentrancyGuard, ICollaterals {
+contract Collaterals is Ownable, ReentrancyGuard, ICollaterals, IETHErrors, ITokenErrors {
 
     /// @notice The maximum Loan-to-Value (LTV) ratio allowed for collateralized loans, set to 80%
     uint8 public constant ltv = 80;
@@ -132,10 +134,15 @@ contract Collaterals is Ownable, ReentrancyGuard, ICollaterals {
         require(validateLTV(_ethBorrowAmountInWei, _usdtCollateralAmount), "Invalid LTV: Borrowed amount must be less than 80% of the collateral.");
         
         uint256 _usdtAmount = _getAmountWithDecimals(_usdtCollateralAmount);
-        require(usdtContract.allowance(_borrower, address(this)) >= _usdtAmount, "No allowance for the collateral funds.");
+        uint256 _allowance = usdtContract.allowance(_borrower, address(this));
+
+        if (_allowance < _usdtAmount)
+            revert NotEnoughTokenAllowance(_borrower, address(this), _usdtAmount, _allowance);
         
         bool _success = usdtContract.transferFrom(_borrower, address(this), _usdtAmount);
-        require(_success, "Failed to deposit collateral.");
+        
+        if (!_success)
+            revert TokenTransferFailed(_borrower, address(this), _usdtAmount);
 
         emit CollateralDeposited(_borrower, _ethBorrowAmountInWei, _usdtCollateralAmount);
     }
@@ -145,8 +152,12 @@ contract Collaterals is Ownable, ReentrancyGuard, ICollaterals {
     /// @param _usdtCollateralAmount Amount of USDT collateral to withdraw
     function withdrawCollateral(address _borrower, uint256 _usdtCollateralAmount) external onlyOwner nonReentrant
     {
-        bool _success = usdtContract.transfer(_borrower, _getAmountWithDecimals(_usdtCollateralAmount));
-        require(_success, "Failed to refund collateral.");
+        uint256 _amountWithDecimals = _getAmountWithDecimals(_usdtCollateralAmount);
+        
+        bool _success = usdtContract.transfer(_borrower, _amountWithDecimals);
+        
+        if (!_success)
+            revert TokenTransferFailed(msg.sender, _borrower, _amountWithDecimals);
 
         emit CollateralWithdrawn(_borrower, _usdtCollateralAmount);
     }
@@ -170,7 +181,9 @@ contract Collaterals is Ownable, ReentrancyGuard, ICollaterals {
         wethContract.withdraw(_coveredDebtInWEI);
 
         (bool _success,) = owner().call{value: _coveredDebtInWEI}("");
-        require(_success, "Failed to send liquidated amount.");
+        
+        if (!_success)
+            revert ETHTransferFailed(owner(), _coveredDebtInWEI);
 
         emit CollateralLiquidated(_totalLiquidatedUSDTAmount, _coveredDebtInWEI, block.timestamp);
     }
@@ -181,7 +194,8 @@ contract Collaterals is Ownable, ReentrancyGuard, ICollaterals {
     /// @return Amount of WETH received from the swap
     function _swapUSDTForWETH(uint256 amountIn, uint256 amountOutMin) internal returns (uint256)
     {
-        usdtContract.approve(address(uniswapRouter), amountIn);
+        if (!usdtContract.approve(address(uniswapRouter), amountIn))
+            revert TokenApproveFailed(msg.sender, address(uniswapRouter), amountIn);
 
         address[] memory path = new address[](2);
         path[0] = address(usdtContract);

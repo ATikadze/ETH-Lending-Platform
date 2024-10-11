@@ -2,9 +2,10 @@
 pragma solidity ^0.8.27;
 
 import "./ERC20Test.sol";
+import "contracts/Interfaces/IETHErrors.sol";
 import "@uniswap/v2-periphery/contracts/interfaces/IWETH.sol";
 
-contract WETHTest is ERC20Test, IWETH {
+contract WETHTest is ERC20Test, IWETH, IETHErrors {
     constructor() ERC20Test("Test Wrapped Ether", "TWETH") {}
 
     function transfer(address _to, uint _value) public override(ERC20, IWETH) returns (bool)
@@ -18,12 +19,16 @@ contract WETHTest is ERC20Test, IWETH {
 
     function withdraw(uint _amount) external
     {
-        require(balanceOf(msg.sender) >= _amount, "Not enough Ether to withdraw.");
-        require(address(this).balance >= _amount, "Not enough Ether available to withdraw.");
+        if (balanceOf(msg.sender) < _amount)
+            revert InsufficientEtherBalance(_amount, balanceOf(msg.sender));
+
+        if (address(this).balance < _amount)
+            revert InsufficientEtherBalance(_amount, address(this).balance);
 
         _update(msg.sender, address(0), _amount);
         (bool _success,) = msg.sender.call{value: _amount}("");
         
-        require(_success, "Withdrawal of Ether unsuccessful.");
+        if (!_success)
+            revert ETHTransferFailed(msg.sender, _amount);
     }
 }
