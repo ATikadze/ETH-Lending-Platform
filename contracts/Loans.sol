@@ -62,7 +62,7 @@ contract Loans is Ownable, ILoans {
     /// @notice Internal function to calculate the number of days elapsed since a given timestamp
     /// @param _timestamp The timestamp to calculate days from
     /// @return The number of days elapsed
-    function getDaysElapsed(uint256 _timestamp) internal view virtual returns(uint256)
+    function _getDaysElapsed(uint256 _timestamp) internal view virtual returns(uint256)
     {
         return (block.timestamp - _timestamp) / (24 * 60 * 60);
     }
@@ -79,9 +79,9 @@ contract Loans is Ownable, ILoans {
     /// @param _amount The loan amount
     /// @param _timestamp The timestamp when the loan was borrowed
     /// @return The calculated interest
-    function calculateInterest(uint256 _amount, uint256 _timestamp) internal view returns(uint256)
+    function _calculateInterest(uint256 _amount, uint256 _timestamp) internal view returns(uint256)
     {
-        uint256 _daysElapsed = getDaysElapsed(_timestamp);
+        uint256 _daysElapsed = _getDaysElapsed(_timestamp);
         uint256 _interest = (_amount * ethAPR * (_daysElapsed / 365)) / 100;
 
         return _interest;
@@ -91,9 +91,9 @@ contract Loans is Ownable, ILoans {
     /// @param _amount The loan amount
     /// @param _borrowedTimestamp The timestamp when the loan was borrowed
     /// @return The total debt including the loan amount and interest
-    function calculateDebt(uint256 _amount, uint256 _borrowedTimestamp) internal view returns(uint256)
+    function _calculateDebt(uint256 _amount, uint256 _borrowedTimestamp) internal view returns(uint256)
     {
-        return _amount + calculateInterest(_amount, _borrowedTimestamp);
+        return _amount + _calculateInterest(_amount, _borrowedTimestamp);
     }
 
     /// @notice Returns the total debt for a specific loan
@@ -106,7 +106,7 @@ contract Loans is Ownable, ILoans {
         if (_loan.paidTimestamp != 0)
             return 0;
 
-        return calculateDebt(_loan.amount, _loan.borrowedTimestamp);
+        return _calculateDebt(_loan.amount, _loan.borrowedTimestamp);
     }
 
     /// @notice Returns the details of a specific loan
@@ -126,7 +126,7 @@ contract Loans is Ownable, ILoans {
         _collateralAmount = _loan.collateralAmount;
         _borrowedTimestamp = _loan.borrowedTimestamp;
         _paidTimestamp = _loan.paidTimestamp;
-        _totalDebt = calculateDebt(_loan.amount, _loan.borrowedTimestamp);
+        _totalDebt = _calculateDebt(_loan.amount, _loan.borrowedTimestamp);
     }
 
     /// @notice Creates a new loan for a borrower

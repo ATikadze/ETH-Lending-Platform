@@ -11,14 +11,14 @@ contract CollateralsTest is Collaterals
     }
 
     function getWeiPerUSDTTest() public view returns (uint256) {
-        return getWeiPerUSDT();
+        return _getWeiPerUSDT();
     }
 
     function calculateLTVTest(uint256 _ethBorrowAmountInWei, uint256 _usdtCollateralAmount, uint256 _weiPerUSDT) public pure returns(uint256) {
-        return calculateLTV(_ethBorrowAmountInWei, _usdtCollateralAmount, _weiPerUSDT);
+        return _calculateLTV(_ethBorrowAmountInWei, _usdtCollateralAmount, _weiPerUSDT);
     }
 
     function calculateLiquidationTest(uint256 _ethBorrowAmountInWei, uint256 _usdtCollateralAmount, uint256 _weiPerUSDT) public pure returns (uint256) {
-        return calculateLiquidation(_ethBorrowAmountInWei, _usdtCollateralAmount, _weiPerUSDT);
+        return _calculateLiquidation(_ethBorrowAmountInWei, _usdtCollateralAmount, _weiPerUSDT);
     }
 }

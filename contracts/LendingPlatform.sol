@@ -32,7 +32,7 @@ contract LendingPlatform is ILendingPlatform {
     /// @param _usdtPriceFeedAddress The address of the Chainlink price feed for USDT/ETH
     /// @param _uniswapRouterAddress The address of the Uniswap V2 router contract
     constructor(uint256 _tokenDecimalsCount, address _usdtAddress, address _wethAddress, address _usdtPriceFeedAddress, address _uniswapRouterAddress) {
-        initializeContracts(_tokenDecimalsCount, _usdtAddress, _wethAddress, _usdtPriceFeedAddress, _uniswapRouterAddress);
+        _initializeContracts(_tokenDecimalsCount, _usdtAddress, _wethAddress, _usdtPriceFeedAddress, _uniswapRouterAddress);
     }
 
     /// @notice Fallback function to receive ETH; any ETH received is treated as a deposit if the sender is not the Collaterals contract
@@ -48,7 +48,7 @@ contract LendingPlatform is ILendingPlatform {
     /// @param _wethAddress The address of the Wrapped ETH (WETH) token contract
     /// @param _usdtPriceFeedAddress The address of the Chainlink price feed for USDT/ETH
     /// @param _uniswapRouterAddress The address of the Uniswap V2 router contract
-    function initializeContracts(uint256 _tokenDecimalsCount, address _usdtAddress, address _wethAddress, address _usdtPriceFeedAddress, address _uniswapRouterAddress) internal virtual
+    function _initializeContracts(uint256 _tokenDecimalsCount, address _usdtAddress, address _wethAddress, address _usdtPriceFeedAddress, address _uniswapRouterAddress) internal virtual
     {
         loans = new Loans(); // Initializes the Loans contract
         lendingPool = new LendingPool(); // Initializes the LendingPool contract

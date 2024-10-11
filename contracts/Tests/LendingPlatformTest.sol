@@ -12,7 +12,7 @@ contract LendingPlatformTest is LendingPlatform
     LendingPlatform(_tokenDecimalsCount, _usdtAddress, _wethAddress, _usdtPriceFeedAddress, _uniswapRouterAddress)
     {}
 
-    function initializeContracts(uint256 _tokenDecimalsCount, address _usdtAddress, address _wethAddress, address _usdtPriceFeedAddress, address _uniswapRouterAddress) internal override
+    function _initializeContracts(uint256 _tokenDecimalsCount, address _usdtAddress, address _wethAddress, address _usdtPriceFeedAddress, address _uniswapRouterAddress) internal override
     {
         loans = new LoansTest();
         lendingPool = new LendingPoolTest();

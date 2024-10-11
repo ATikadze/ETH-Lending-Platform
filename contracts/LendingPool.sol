@@ -54,7 +54,7 @@ contract LendingPool is Ownable, ReentrancyGuard, ILendingPool {
     /// @param _lender The address of the lender
     /// @param _amount The amount of ETH to update
     /// @param _deposit A boolean indicating whether it's a deposit (true) or a withdrawal (false)
-    function updateBalance(address _lender, uint256 _amount, bool _deposit) internal
+    function _updateBalance(address _lender, uint256 _amount, bool _deposit) internal
     {
         lenderAvailableAmounts[_lender] = lenderAvailableAmounts[_lender].addOrSub(_amount, _deposit);
         lenderAmounts[_lender] = lenderAmounts[_lender].addOrSub(_amount, _deposit);
@@ -79,7 +79,7 @@ contract LendingPool is Ownable, ReentrancyGuard, ILendingPool {
             lenders.push(_lender);
         }
 
-        updateBalance(_lender, msg.value, true);
+        _updateBalance(_lender, msg.value, true);
 
         emit Deposited(_lender, msg.value);
     }
@@ -90,7 +90,7 @@ contract LendingPool is Ownable, ReentrancyGuard, ILendingPool {
     function withdraw(address _lender, uint256 _amount) external onlyOwner nonReentrant {
         require(lenderAvailableAmounts[_lender] >= _amount, "Not enough available amount to withdraw.");
 
-        updateBalance(_lender, _amount, false);
+        _updateBalance(_lender, _amount, false);
 
         (bool _success, ) = _lender.call{value: _amount}("");
         require(_success, "Failed to withdraw funds.");

@@ -65,14 +65,14 @@ contract Collaterals is Ownable, ReentrancyGuard, ICollaterals {
     /// @notice Internal function to adjust amounts based on token decimals
     /// @param _amount Amount of USDT to convert
     /// @return Converted amount with decimals
-    function getAmountWithDecimals(uint256 _amount) internal view returns (uint256)
+    function _getAmountWithDecimals(uint256 _amount) internal view returns (uint256)
     {
         return tokenDecimalsCount == 0 ? _amount : _amount * (10 ** tokenDecimalsCount);
     }
 
     /// @notice Internal function to retrieve the current price of USDT in WEI from the Chainlink price feed
     /// @return The current price of 1 USDT in wei
-    function getWeiPerUSDT() internal view returns (uint256)
+    function _getWeiPerUSDT() internal view returns (uint256)
     {
         (, int256 price,,,) = usdtPriceFeed.latestRoundData();
         
@@ -89,7 +89,7 @@ contract Collaterals is Ownable, ReentrancyGuard, ICollaterals {
     /// @param _usdtCollateralAmount Amount of USDT collateral provided
     /// @param _weiPerUSDT Current price of USDT in wei
     /// @return Calculated LTV ratio as a percentage
-    function calculateLTV(uint256 _ethBorrowAmountInWei, uint256 _usdtCollateralAmount, uint256 _weiPerUSDT) internal pure returns (uint256)
+    function _calculateLTV(uint256 _ethBorrowAmountInWei, uint256 _usdtCollateralAmount, uint256 _weiPerUSDT) internal pure returns (uint256)
     {
         return (_ethBorrowAmountInWei * 100) / (_weiPerUSDT * _usdtCollateralAmount);
     }
@@ -100,8 +100,8 @@ contract Collaterals is Ownable, ReentrancyGuard, ICollaterals {
     /// @return True if LTV is valid, otherwise false
     function validateLTV(uint256 _ethBorrowAmountInWei, uint256 _usdtCollateralAmount) public view returns (bool)
     {
-        uint256 _weiPerUSDT = getWeiPerUSDT();
-        uint256 _currentLTV = calculateLTV(_ethBorrowAmountInWei, _usdtCollateralAmount, _weiPerUSDT);
+        uint256 _weiPerUSDT = _getWeiPerUSDT();
+        uint256 _currentLTV = _calculateLTV(_ethBorrowAmountInWei, _usdtCollateralAmount, _weiPerUSDT);
         
         return _currentLTV <= ltv;
     }
@@ -111,7 +111,7 @@ contract Collaterals is Ownable, ReentrancyGuard, ICollaterals {
     /// @param _usdtCollateralAmount Amount of USDT collateral provided
     /// @param _weiPerUSDT Current price of USDT in wei
     /// @return Amount to liquidate
-    function calculateLiquidation(uint256 _ethBorrowAmountInWei, uint256 _usdtCollateralAmount, uint256 _weiPerUSDT) internal pure returns (uint256)
+    function _calculateLiquidation(uint256 _ethBorrowAmountInWei, uint256 _usdtCollateralAmount, uint256 _weiPerUSDT) internal pure returns (uint256)
     {
         uint256 _borrowedAmountInUSDT = (_ethBorrowAmountInWei * 10 / _weiPerUSDT);
         uint256 _collateral = (8 * _usdtCollateralAmount);
@@ -131,7 +131,7 @@ contract Collaterals is Ownable, ReentrancyGuard, ICollaterals {
     {
         require(validateLTV(_ethBorrowAmountInWei, _usdtCollateralAmount), "Invalid LTV: Borrowed amount must be less than 80% of the collateral.");
         
-        uint256 _usdtAmount = getAmountWithDecimals(_usdtCollateralAmount);
+        uint256 _usdtAmount = _getAmountWithDecimals(_usdtCollateralAmount);
         require(usdtContract.allowance(_borrower, address(this)) >= _usdtAmount, "No allowance for the collateral funds.");
         
         bool _success = usdtContract.transferFrom(_borrower, address(this), _usdtAmount);
@@ -145,7 +145,7 @@ contract Collaterals is Ownable, ReentrancyGuard, ICollaterals {
     /// @param _usdtCollateralAmount Amount of USDT collateral to withdraw
     function withdrawCollateral(address _borrower, uint256 _usdtCollateralAmount) external onlyOwner nonReentrant
     {
-        bool _success = usdtContract.transfer(_borrower, getAmountWithDecimals(_usdtCollateralAmount));
+        bool _success = usdtContract.transfer(_borrower, _getAmountWithDecimals(_usdtCollateralAmount));
         require(_success, "Failed to refund collateral.");
 
         emit CollateralWithdrawn(_borrower, _usdtCollateralAmount);
@@ -159,14 +159,14 @@ contract Collaterals is Ownable, ReentrancyGuard, ICollaterals {
     /// @return _coveredDebtInWEI Amount of debt covered by liquidation
     function liquidate(address _liquidator, uint256 _ethBorrowAmountInWei, uint256 _usdtCollateralAmount) external onlyOwner nonReentrant returns (uint256 _totalLiquidatedUSDTAmount, uint256 _coveredDebtInWEI)
     {
-        uint256 _weiPerUSDT = getWeiPerUSDT();
-        uint256 _currentLTV = calculateLTV(_ethBorrowAmountInWei, _usdtCollateralAmount, _weiPerUSDT);
+        uint256 _weiPerUSDT = _getWeiPerUSDT();
+        uint256 _currentLTV = _calculateLTV(_ethBorrowAmountInWei, _usdtCollateralAmount, _weiPerUSDT);
 
         assert(_currentLTV > ltv);
 
-        _totalLiquidatedUSDTAmount = calculateLiquidation(_ethBorrowAmountInWei, _usdtCollateralAmount, _weiPerUSDT);
+        _totalLiquidatedUSDTAmount = _calculateLiquidation(_ethBorrowAmountInWei, _usdtCollateralAmount, _weiPerUSDT);
 
-        _coveredDebtInWEI = swapUSDTForWETH(getAmountWithDecimals(_totalLiquidatedUSDTAmount), _totalLiquidatedUSDTAmount * _weiPerUSDT);
+        _coveredDebtInWEI = _swapUSDTForWETH(_getAmountWithDecimals(_totalLiquidatedUSDTAmount), _totalLiquidatedUSDTAmount * _weiPerUSDT);
         wethContract.withdraw(_coveredDebtInWEI);
 
         (bool _success,) = owner().call{value: _coveredDebtInWEI}("");
@@ -179,7 +179,7 @@ contract Collaterals is Ownable, ReentrancyGuard, ICollaterals {
     /// @param amountIn Amount of USDT to swap
     /// @param amountOutMin Minimum amount of WETH to receive from the swap
     /// @return Amount of WETH received from the swap
-    function swapUSDTForWETH(uint256 amountIn, uint256 amountOutMin) internal returns (uint256)
+    function _swapUSDTForWETH(uint256 amountIn, uint256 amountOutMin) internal returns (uint256)
     {
         usdtContract.approve(address(uniswapRouter), amountIn);
 
