@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.0;
+pragma solidity ^0.8.27;
 
 interface ILoans {
     function getBorrower(uint256 _loanId) external view returns(address);

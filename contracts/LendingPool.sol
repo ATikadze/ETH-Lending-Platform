@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.0;
+pragma solidity ^0.8.27;
 
 import "./MathHelper.sol";
 import "./Interfaces/ILendingPool.sol";
@@ -64,7 +64,7 @@ contract LendingPool is Ownable, ReentrancyGuard, ILendingPool {
     /// @notice Returns the available amount of ETH for a specific lender
     /// @param _lender The address of the lender
     /// @return The available amount of ETH for the lender
-    function getAvailableAmount(address _lender) external view onlyOwner returns (uint256) {
+    function getAvailableAmount(address _lender) external view returns (uint256) {
         return lenderAvailableAmounts[_lender];
     }
 

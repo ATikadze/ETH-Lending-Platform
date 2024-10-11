@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.0;
+pragma solidity ^0.8.27;
 
 interface ILendingPool {
     function getAvailableAmount(address _lender) external view returns (uint256);

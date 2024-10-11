@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.0;
+pragma solidity ^0.8.27;
 
 import "./ERC20Test.sol";
 import "@uniswap/v2-periphery/contracts/interfaces/IWETH.sol";
