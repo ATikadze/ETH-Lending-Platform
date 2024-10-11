@@ -45,7 +45,8 @@ contract LendingPool is Ownable, ReentrancyGuard, ILendingPool {
     /// @notice Emitted when a borrower repays their loan
     /// @param borrower The address of the borrower
     /// @param amount The amount of ETH repaid
-    event Repaid(address borrower, uint256 amount);
+    /// @param timestamp Timestamp when the event emitted
+    event Repaid(address borrower, uint256 amount, uint256 timestamp);
 
     /// @notice Constructor to initialize the LendingPool contract
     constructor() Ownable(msg.sender) {}
@@ -143,6 +144,6 @@ contract LendingPool is Ownable, ReentrancyGuard, ILendingPool {
             lenderAvailableAmounts[_lender] += _debtShare;
         }
 
-        emit Repaid(_borrower, msg.value);
+        emit Repaid(_borrower, msg.value, block.timestamp);
     }
 }

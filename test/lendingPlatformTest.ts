@@ -1,6 +1,7 @@
 const { toWei, getAccountWeiBalance } = require("../scripts/ethHelper.ts");
 const { ethers } = require("hardhat");
 const { expect } = require("chai");
+const { anyValue } = require("@nomicfoundation/hardhat-chai-matchers/withArgs");
 
 describe("Lending Platform Test", function () {
     let erc20ContractAsOwner;
@@ -189,7 +190,7 @@ describe("Lending Platform Test", function () {
         it("Borrowing ETH", async function () {
             await expect(await lendingPlatformAsBorrower.borrowETH(borrowAmount, usdtCollateral))
                 .to.emit(loansContractAsOwner, "LoanCreated")
-                .withArgs(loanId, borrowerAccount, borrowAmount);
+                .withArgs(loanId, borrowerAccount, borrowAmount, anyValue);
         });
 
         it("Check USDT balance", async function () {
@@ -236,7 +237,7 @@ describe("Lending Platform Test", function () {
         it("Liquidate", async function () {
             await expect(await lendingPlatformAsLiquidator.liquidateCollateral(loanId))
                 .to.emit(collateralsContractAsOwner, "CollateralLiquidated")
-                .withArgs(liquidationAmount, liquidationCoveredDebt);
+                .withArgs(liquidationAmount, liquidationCoveredDebt, anyValue);
         });
 
         it("Check Debt/Collateral", async function () {

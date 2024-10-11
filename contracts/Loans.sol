@@ -35,18 +35,21 @@ contract Loans is Ownable, ILoans {
     /// @param loanId The ID of the loan
     /// @param borrower The address of the borrower
     /// @param amount The amount of ETH borrowed
-    event LoanCreated(uint256 loanId, address borrower, uint256 amount);
+    /// @param timestamp Timestamp when the event emitted
+    event LoanCreated(uint256 loanId, address borrower, uint256 amount, uint256 timestamp);
 
     /// @notice Emitted when a loan is marked as paid
     /// @param loanId The ID of the loan
     /// @param paidTimestamp The timestamp when the loan was fully repaid
-    event LoanMarkedAsPaid(uint256 loanId, uint256 paidTimestamp);
+    /// @param timestamp Timestamp when the event emitted
+    event LoanMarkedAsPaid(uint256 loanId, uint256 paidTimestamp, uint256 timestamp);
 
     /// @notice Emitted when collateral is liquidated
     /// @param loanId The ID of the loan
     /// @param coveredDebt The amount of debt covered by the liquidation
     /// @param liquidatedCollateral The amount of collateral liquidated
-    event CollateralLiquidated(uint256 loanId, uint256 coveredDebt, uint256 liquidatedCollateral);
+    /// @param timestamp Timestamp when the event emitted
+    event CollateralLiquidated(uint256 loanId, uint256 coveredDebt, uint256 liquidatedCollateral, uint256 timestamp);
 
     /// @notice Constructor to initialize the Loans contract
     constructor() Ownable(msg.sender) {}
@@ -145,7 +148,7 @@ contract Loans is Ownable, ILoans {
         _loan.collateralAmount = _collateralAmount;
         _loan.borrowedTimestamp = block.timestamp;
 
-        emit LoanCreated(loanId, _borrower, _amount);
+        emit LoanCreated(loanId, _borrower, _amount, block.timestamp);
     }
 
     /// @notice Marks a loan as fully paid
@@ -157,7 +160,7 @@ contract Loans is Ownable, ILoans {
         uint256 _paidTimestamp = block.timestamp;
         loans[_loanId].paidTimestamp = _paidTimestamp;
 
-        emit LoanMarkedAsPaid(_loanId, _paidTimestamp);
+        emit LoanMarkedAsPaid(_loanId, _paidTimestamp, block.timestamp);
     }
 
     /// @notice Liquidates collateral for a specific loan if the loan is in default
@@ -169,6 +172,6 @@ contract Loans is Ownable, ILoans {
         loans[_loanId].amount -= _coveredDebt;
         loans[_loanId].collateralAmount -= _liquidatedCollateral;
 
-        emit CollateralLiquidated(_loanId, _coveredDebt, _liquidatedCollateral);
+        emit CollateralLiquidated(_loanId, _coveredDebt, _liquidatedCollateral, block.timestamp);
     }
 }

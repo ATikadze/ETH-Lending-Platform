@@ -38,7 +38,7 @@ contract Collaterals is Ownable, ReentrancyGuard, ICollaterals {
     event CollateralWithdrawn(address borrower, uint256 usdtCollateralAmount);
 
     /// @notice Event emitted when collateral is liquidated due to an invalid Loan-to-Value (LTV) ratio
-    event CollateralLiquidated(uint256 liquidationAmount, uint256 coveredDebt);
+    event CollateralLiquidated(uint256 liquidationAmount, uint256 coveredDebt, uint256 timestamp);
 
     /// @notice Constructor to initialize contract with necessary parameters
     /// @param _tokenDecimalsCount The number of decimals for USDT token
@@ -172,7 +172,7 @@ contract Collaterals is Ownable, ReentrancyGuard, ICollaterals {
         (bool _success,) = owner().call{value: _coveredDebtInWEI}("");
         require(_success, "Failed to send liquidated amount.");
 
-        emit CollateralLiquidated(_totalLiquidatedUSDTAmount, _coveredDebtInWEI);
+        emit CollateralLiquidated(_totalLiquidatedUSDTAmount, _coveredDebtInWEI, block.timestamp);
     }
 
     /// @notice Swaps USDT for WETH using Uniswap V2
