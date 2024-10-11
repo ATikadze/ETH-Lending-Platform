@@ -1,4 +1,4 @@
-const { toWei, getAccountWeiBalance } = require("../scripts/ethHelper");
+const { toWei, getAccountWeiBalance } = require("../scripts/ethHelper.ts");
 const { ethers } = require("hardhat");
 const { expect } = require("chai");
 
